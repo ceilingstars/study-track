@@ -99,7 +99,7 @@ label{display:block;font-size:13px;color:var(--mut);margin:8px 0 3px}
 <div class="wrap">
  <div class="top">
   <h1>Study Track</h1>
-  <div class="tabs"><button data-a="tab" data-v="week">Week</button><button data-a="tab" data-v="day">Day</button><button data-a="tab" data-v="plan">Planning</button><button data-a="tab" data-v="syl">Syllabus</button><button data-a="tab" data-v="sr">Revision</button><button data-a="tab" data-v="stats">Stats</button><button data-a="tab" data-v="subs">Subjects and data</button></div>
+  <div class="tabs"><button data-a="tab" data-v="week">Week</button><button data-a="tab" data-v="day">Day</button><button data-a="tab" data-v="plan">Planning</button><button data-a="tab" data-v="syl">Syllabus</button><button data-a="tab" data-v="fr" data-social hidden>Friends</button><button data-a="tab" data-v="gr" data-social hidden>Groups</button><button data-a="tab" data-v="sr">Revision</button><button data-a="tab" data-v="stats">Stats</button><button data-a="tab" data-v="subs">Subjects and data</button></div>
   <span class="sp"></span><span class="mut" id="sync"></span><span class="mut" id="clk"></span><b id="streak"></b>
   <button data-a="addses">Log session</button><button data-a="addplan">+ Plan</button><button data-a="addtask">+ Task</button><button class="p" data-a="study">Study now</button><button data-a="theme">Theme</button>
  </div>
@@ -160,7 +160,7 @@ const putLocal=at=>{try{localStorage.setItem(K,JSON.stringify(S));localStorage.s
 function setSt(st,err){SY.st=st;SY.err=err||"";const e=document.getElementById("sync");if(!e)return;
  e.textContent={local:"💾 This device only",syncing:"☁ Saving…",ok:"☁ Synced",err:"⚠ Not synced"}[st];
  e.title={local:"Saved in this browser. Open the shared link signed in to claude.ai to sync across devices.",syncing:"Saving to your private cloud copy",ok:"Saved to your private cloud copy",err:err||"Sync paused; your data is still saved on this device"}[st]}
-const save=()=>{const t=Date.now();putLocal(t);SY.at=t;if(SY.ref){SY.dirty=true;setSt("syncing");clearTimeout(SY.timer);SY.timer=setTimeout(push,1200)}};
+const save=()=>{lvChk();pubSoon();const t=Date.now();putLocal(t);SY.at=t;if(SY.ref){SY.dirty=true;setSt("syncing");clearTimeout(SY.timer);SY.timer=setTimeout(push,1200)}};
 async function push(){if(SY.busy){SY.timer=setTimeout(push,500);return}if(!SY.dirty||!SY.ref)return;SY.busy=true;SY.dirty=false;
  try{await SY.ref.set({json:JSON.stringify(S),at:SY.at});setSt(SY.dirty?"syncing":"ok")}
  catch(e){SY.dirty=true;setSt("err",e&&e.code=="invalid_argument"?"Your access level cannot save to the cloud. Ask the owner to share it with you as Editor.":e&&e.code=="quota_exceeded"?"Cloud storage is full.":"Could not reach the cloud. Will retry on your next change.")}
@@ -325,7 +325,7 @@ const lines=t=>String(t||"").split("\n").map(x=>x.trim()).filter(Boolean).map(x=
 const findU=(sid,uid)=>{const s=S.subs.find(z=>z.id==sid);return[s,s&&s.units.find(u=>u.id==uid)]};
 function unitsHtml(s){return s.units.map(u=>{const d=u.ch.filter(c=>c.d).length,a=`data-s="${s.id}" data-u="${u.id}"`;
  return `<div class="un"><div class="row"><b>${esc(u.t)}</b><span class="mut">${d}/${u.ch.length}</span><span class="sp"></span><button class="ib" data-a="uadd" ${a} title="Add several chapters">＋</button><button class="ib" data-a="ued" ${a} title="Rename or delete unit">⋯</button></div><div class="pb" style="margin:4px 0 8px"><i style="width:${pctOf(d,u.ch.length)}%;background:${s.color}"></i></div>
- ${u.ch.map(c=>`<div class="row" style="margin-bottom:5px"><input type="checkbox" data-a="ctog" ${a} data-c="${c.id}"${c.d?" checked":""}><span class="sp"${c.d?' style="text-decoration:line-through;opacity:.6"':""}>${esc(c.t)}</span><button class="ib" data-a="chsr" ${a} data-c="${c.id}" title="Add to revision schedule">↻</button><button class="ib" data-a="cdel" ${a} data-c="${c.id}" title="Remove chapter">✕</button></div>`).join("")}
+ ${u.ch.map(c=>`<div class="row" style="margin-bottom:5px"><input type="checkbox" data-a="ctog" ${a} data-c="${c.id}"${c.d?" checked":""}><span class="sp"${c.d?' style="text-decoration:line-through;opacity:.6"':""}>${esc(c.t)}</span><button class="ib" data-a="chstudy" ${a} data-c="${c.id}" title="Study this chapter now" style="font-size:12px;width:auto;padding:3px 8px">▶ Study now</button><button class="ib" data-a="chsr" ${a} data-c="${c.id}" title="Add to revision schedule">↻</button><button class="ib" data-a="cdel" ${a} data-c="${c.id}" title="Remove chapter">✕</button></div>`).join("")}
  <div class="row"><input id="ci_${u.id}" class="sp" placeholder="Add a chapter" ${a}><button data-a="cadd" ${a}>Add</button></div></div>`}).join("")||'<p class="mut">No units yet. Add a unit to start the syllabus.</p>'}
 function unitF(sid,u){const s=S.subs.find(z=>z.id==sid);if(!s)return;
  dlg(`<h2>${u?"Edit":"Add"} unit · ${esc(s.name)}</h2><label>Unit name</label><input name="t" required value="${u?esc(u.t):""}">${u?`<label><input type="checkbox" name="x"> Delete this unit and its chapters</label>`:`<label>Chapters (one per line, optional)</label><textarea name="c" rows="6" style="width:100%"></textarea>`}`,f=>{
@@ -455,9 +455,9 @@ function render(){const old=$("gs"),sc=old?old.scrollTop:null;
  const nv=T=="week"||T=="day"||T=="plan";$("nav").hidden=!nv;
  if(nv){const r=rng(T=="week"?"week":T=="day"?"day":"month");
   $("lab").textContent=T=="day"?fd(A,{weekday:"long",day:"numeric",month:"long",year:"numeric"}):T=="week"?fd(r.s,{day:"numeric",month:"short"})+" – "+fd(r.e,{day:"numeric",month:"short",year:"numeric"}):fd(A,{month:"long",year:"numeric"})}
- $("main").innerHTML=T=="week"?planner(rng("week")):T=="day"?dayView():T=="plan"?planning():T=="syl"?syllabus():T=="sr"?srView():T=="stats"?stats():subsView();
+ $("main").innerHTML=T=="week"?planner(rng("week")):T=="day"?dayView():T=="plan"?planning():T=="syl"?syllabus():T=="fr"?friendsV():T=="gr"?groupsV():T=="sr"?srView():T=="stats"?stats():subsView();
  const g=$("gs");if(g)g.scrollTop=sc!=null?sc:Math.max(0,(Math.max(new Date().getHours(),8)-2)*H);
- $("streak").textContent="🔥 "+streakOf(S.ses);
+ $("streak").textContent="🔥 "+streakOf(S.ses);LV=lvl().L;document.querySelectorAll("[data-social]").forEach(b=>b.hidden=!window.__social);
  const cur=$("tsub").value;$("tsub").innerHTML=S.subs.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join("");if(cur)$("tsub").value=cur}
 function rp(){if($("pop").open&&POP&&POP.k=="c")coursePop(POP.id)}
 
@@ -507,8 +507,41 @@ document.addEventListener("keydown",e=>{if(e.key=="Enter"&&e.target.id&&e.target
 
 function blobDl(nm,b){try{const u=URL.createObjectURL(b),l=document.createElement("a");l.href=u;l.download=nm;document.body.appendChild(l);l.click();l.remove();setTimeout(()=>URL.revokeObjectURL(u),2000)}catch(x){toast("Saving is blocked here")}}
 function plainDl(nm,txt){try{const b=new Blob([txt],{type:"text/plain"}),u=URL.createObjectURL(b),l=document.createElement("a");l.href=u;l.download=nm;document.body.appendChild(l);l.click();l.remove();setTimeout(()=>URL.revokeObjectURL(u),2000)}catch(x){toast("Download is blocked here, use Backup and restore to copy the text")}}
+/* ---------- confetti + level up ---------- */
+let LV=null;
+function lvChk(){const L=lvl().L;if(LV!=null&&L>LV){LV=L;setTimeout(()=>{confetti();toast("🎉 Level "+L+"!")},300)}}
+function confetti(){if(matchMedia("(prefers-reduced-motion:reduce)").matches)return;const c=document.createElement("canvas");c.style.cssText="position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:9999";c.width=innerWidth;c.height=innerHeight;document.body.appendChild(c);const g=c.getContext("2d"),cols=["#f43f5e","#f59e0b","#10b981","#3b82f6","#8b5cf6","#14b8a6","#eab308"];
+ const P=Array.from({length:160},()=>({x:c.width/2+(Math.random()-.5)*200,y:c.height*.35,vx:(Math.random()-.5)*14,vy:-Math.random()*13-3,w:6+Math.random()*6,h:4+Math.random()*6,r:Math.random()*6,vr:(Math.random()-.5)*.4,c:cols[Math.random()*cols.length|0]}));const t0=performance.now();
+ (function f(t){const e=t-t0;g.clearRect(0,0,c.width,c.height);P.forEach(p=>{p.vy+=.35;p.x+=p.vx;p.y+=p.vy;p.vx*=.99;p.r+=p.vr;g.save();g.globalAlpha=Math.max(0,1-e/3200);g.translate(p.x,p.y);g.rotate(p.r);g.fillStyle=p.c;g.fillRect(-p.w/2,-p.h/2,p.w,p.h);g.restore()});if(e<3200)requestAnimationFrame(f);else c.remove()})(t0)}
+/* ---------- friends and groups (needs sign-in) ---------- */
+const SOC={me:null,fr:[],inc:[],out:[],gr:[],loading:false,err:"",ok:false};let PT=0;
+function myStats(){const td=iso(mid(new Date())),ws=iso(monday(new Date()));let wk=0,today=0;S.ses.forEach(x=>{if(x.date==td)today+=x.min;if(x.date>=ws&&x.date<=td)wk+=x.min});const L=lvl();return{wk,ws,today,day:td,streak:streakOf(S.ses),xp:L.xp,lvl:L.L}}
+function pubSoon(){clearTimeout(PT);PT=setTimeout(()=>{if(window.__publish)window.__publish(myStats())},3000)}
+function socLoad(){if(!window.__social)return;SOC.loading=true;if(T=="fr"||T=="gr")render();
+ window.__social.load().then(r=>{Object.assign(SOC,r,{err:"",ok:true})}).catch(e=>{SOC.err=(e&&e.message)||"Could not load. Check your connection."}).finally(()=>{SOC.loading=false;if(T=="fr"||T=="gr")render()})}
+function socDo(fn,okMsg){Promise.resolve().then(fn).then(()=>{if(okMsg)toast(okMsg);socLoad()}).catch(e=>toast((e&&e.message)||"Something went wrong"))}
+const wkNow=()=>iso(monday(new Date())),dyNow=()=>iso(mid(new Date()));
+const pw=p=>p.wk_start==wkNow()?p.wk||0:0,pt=p=>p.day==dyNow()?p.today||0:0;
+function board(list,meId){const rows=list.map(p=>Object.assign({},p,{w:pw(p),d:pt(p)})).sort((a,b)=>b.w-a.w||b.d-a.d);const top=rows[0]?rows[0].w:0;
+ return rows.map((p,i)=>`<div class="row" style="padding:6px 0;border-top:1px solid var(--bd)"><b style="width:22px">${i==0&&p.w>0?"🥇":i==1&&p.w>0?"🥈":i==2&&p.w>0?"🥉":i+1}</b><div style="flex:1;min-width:0"><b>@${esc(p.username)}</b>${p.user_id==meId?' <span class="mut">(you)</span>':""}<div class="pb" style="margin:3px 0 0"><i style="width:${top?p.w/top*100:0}%;background:var(--ac)"></i></div></div><div style="text-align:right"><b>${hm(p.w)||"0m"}</b><div class="mut" style="font-size:12px">today ${hm(p.d)||"0m"} · 🔥${p.streak||0} · Lv ${p.lvl||1}</div></div></div>`).join("")}
+function socGate(){if(!window.__social)return'<div class="card"><h2>Friends and groups</h2><p class="mut">Sign in to the installed Study Track app to use friends and groups.</p></div>';
+ if(SOC.err)return`<div class="card"><h2>Could not load</h2><p class="mut">${esc(SOC.err)}</p><p class="mut">If this is your first time, the Supabase social setup script may not have been run yet.</p><button data-a="socref">Try again</button></div>`;
+ if(!SOC.ok)return'<div class="card mut">Loading…</div>';
+ if(!SOC.me)return`<div class="card"><h2>Choose a username</h2><p class="mut">Friends find you by this name. Use 3 to 20 letters, numbers or underscores. Only your study time, streak and level are shared, and only with your friends and group members.</p><div class="row"><input id="un" placeholder="username" maxlength="20" style="min-width:200px"><button class="p" data-a="setun">Save</button></div></div>`;return""}
+function friendsV(){const g=socGate();if(g)return g;const me=SOC.me;
+ return`<div class="card"><div class="row"><h2 style="margin:0">Friends</h2><span class="sp"></span><span class="mut">You are @${esc(me.username)}</span><button data-a="socref">${SOC.loading?"…":"Refresh"}</button></div>
+ <div class="row" style="margin-top:12px"><input id="fa" placeholder="Friend's username" style="min-width:200px"><button class="p" data-a="fadd">Send request</button></div></div>
+ ${SOC.inc.length?`<div class="card"><h2>Requests</h2>${SOC.inc.map(r=>`<div class="row" style="margin-bottom:6px"><b>@${esc(r.username)}</b><span class="sp"></span><button class="p" data-a="facc" data-id="${r.id}">Accept</button><button data-a="fdel" data-id="${r.id}">Decline</button></div>`).join("")}</div>`:""}
+ <div class="card"><h2>Leaderboard · this week</h2>${board([me].concat(SOC.fr),me.user_id)}${SOC.fr.length?"":'<p class="mut" style="margin-top:8px">No friends yet. Send a request using their username.</p>'}
+ ${SOC.fr.length?`<div style="margin-top:10px">${SOC.fr.map(p=>`<button data-a="fdel" data-id="${p.fid}" style="margin:0 6px 6px 0" title="Remove friend">Remove @${esc(p.username)}</button>`).join("")}</div>`:""}</div>
+ ${SOC.out.length?`<div class="card"><h2>Sent requests</h2>${SOC.out.map(r=>`<div class="row"><span>@${esc(r.username)} · waiting</span><span class="sp"></span><button data-a="fdel" data-id="${r.id}">Cancel</button></div>`).join("")}</div>`:""}`}
+function groupsV(){const g=socGate();if(g)return g;const me=SOC.me;
+ return`<div class="card"><div class="row"><h2 style="margin:0">Groups</h2><span class="sp"></span><button data-a="socref">${SOC.loading?"…":"Refresh"}</button></div>
+ <div class="row" style="margin-top:12px"><input id="gn" placeholder="New group name" style="min-width:180px"><button class="p" data-a="gnew">Create group</button></div>
+ <div class="row" style="margin-top:8px"><input id="gc" placeholder="Join with code" style="min-width:180px;text-transform:uppercase"><button data-a="gjoin">Join</button></div></div>
+ ${SOC.gr.map(x=>`<div class="card"><div class="row"><h2 style="margin:0">${esc(x.name)}</h2><span class="sp"></span><span class="mut">Code</span><b>${esc(x.code)}</b><button class="ib" data-a="gcopy" data-v="${esc(x.code)}" style="width:auto;padding:3px 8px">Copy</button></div><div class="mut" style="margin:4px 0 8px">${x.members.length} member${x.members.length==1?"":"s"} · this week</div>${board(x.members,me.user_id)}<button data-a="gleave" data-id="${x.id}" style="margin-top:10px">Leave group</button></div>`).join("")||'<div class="card mut">No groups yet. Create one and share its code, or join with a code.</div>'}`}
 document.addEventListener("click",e=>{const t=e.target.closest("[data-a]");if(!t)return;const a=t.dataset.a,v=t.dataset.v,id=t.dataset.id,now=new Date();
- if(a=="tab"){T=v;render()}
+ if(a=="tab"){T=v;render();if(v=="fr"||v=="gr")socLoad()}
  else if(a=="st"){ST=v;render()}
  else if(a=="prev"||a=="next"){const k=a=="prev"?-1:1;A=T=="day"?ad(A,k):T=="week"?ad(A,7*k):new Date(A.getFullYear(),A.getMonth()+k,1);render()}
  else if(a=="today"){A=mid(now);WK=monday(now);render()}
@@ -538,7 +571,7 @@ document.addEventListener("click",e=>{const t=e.target.closest("[data-a]");if(!t
  else if(a=="addtask")taskF({kind:"todo",date:iso(T=="day"||T=="week"?A:mid(now)),t:"",subj:""})
  else if(a=="ctask")taskF({kind:"todo",date:iso(mid(now)),t:"",subj:id})
  else if(a=="edtask")taskF(S.tasks.find(x=>x.id==id))
- else if(a=="tdone"){const k=S.tasks.find(x=>x.id==id);if(k){k.done=!k.done;save();render();rp()}}
+ else if(a=="tdone"){const k=S.tasks.find(x=>x.id==id);if(k){k.done=!k.done;save();render();rp();if(k.done){const dt=S.tasks.filter(z=>z.date==k.date);if(dt.length&&dt.every(z=>z.done)){confetti();toast("All tasks done for the day 🎉")}}}}
  else if(a=="tstudy"){const k=S.tasks.find(x=>x.id==id);if(k){if($("pop").open)$("pop").close();if(!TM.el){if(k.subj&&S.subs.some(z=>z.id==k.subj))$("tsub").value=k.subj;$("tnote").value=k.t}$("tv").hidden=false;tdraw()}}
  else if(a=="course")coursePop(id)
  else if(a=="syt"){const k=t.dataset.s;if(SYC.has(k))SYC.delete(k);else SYC.add(k);render()}
@@ -566,6 +599,16 @@ document.addEventListener("click",e=>{const t=e.target.closest("[data-a]");if(!t
  else if(a=="dl"){const nm="app_backup_"+iso(now)+".txt",txt=JSON.stringify(S);let used=false;try{if(window.claude&&claude.use){claude.use("downloads").then(dd=>{if(dd){used=true;return dd.save({filename:nm,data:txt}).then(()=>toast("Backup saved"),()=>toast("Save cancelled"))}else plainDl(nm,txt)})}else plainDl(nm,txt)}catch(x){plainDl(nm,txt)}}
  else if(a=="dl_old"){try{const b=new Blob([JSON.stringify(S)],{type:"text/plain"}),u=URL.createObjectURL(b),l=document.createElement("a");l.href=u;l.download="app_backup_"+iso(now)+".txt";document.body.appendChild(l);l.click();l.remove();setTimeout(()=>URL.revokeObjectURL(u),2000)}catch(x){toast("Download is blocked here, use Backup and restore to copy the text")}}
  else if(a=="rst")dlg(`<h2>Reset all data?</h2><p class="mut">This deletes every subject, plan, task and session.</p>`,()=>{S=norm({})},"Delete everything")
+ else if(a=="chstudy"){const[sb_,u]=findU(t.dataset.s,t.dataset.u),c=u&&u.ch.find(z=>z.id==t.dataset.c);if(c){if($("pop").open)$("pop").close();if(!TM.el){$("tsub").value=t.dataset.s;$("tcat").value="study";$("tnote").value=c.t}$("tv").hidden=false;tdraw()}}
+ else if(a=="setun")socDo(()=>window.__social.setUsername($("un").value))
+ else if(a=="fadd")socDo(()=>window.__social.addFriend($("fa").value),"Request sent")
+ else if(a=="facc")socDo(()=>window.__social.accept(+id))
+ else if(a=="fdel")socDo(()=>window.__social.removeFriend(+id))
+ else if(a=="gnew")socDo(()=>window.__social.createGroup($("gn").value),"Group created")
+ else if(a=="gjoin")socDo(()=>window.__social.joinGroup($("gc").value),"Joined")
+ else if(a=="gleave"){if(confirm("Leave this group?"))socDo(()=>window.__social.leaveGroup(id))}
+ else if(a=="gcopy"){try{navigator.clipboard.writeText(t.dataset.v);toast("Code copied")}catch(e){toast("Code: "+t.dataset.v)}}
+ else if(a=="socref")socLoad()
  else if(a=="study"){$("tv").hidden=false;tdraw()}
  else if(a=="tx"){if(document.fullscreenElement)document.exitFullscreen();$("tv").hidden=true}
  else if(a=="tfs"){if(document.fullscreenElement)document.exitFullscreen();else if($("tv").requestFullscreen)$("tv").requestFullscreen().catch(()=>toast("Full screen is blocked here, but the timer already fills the window"))}
