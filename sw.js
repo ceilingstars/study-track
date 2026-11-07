@@ -1,5 +1,5 @@
 /* Study Track service worker. Network first, so updates always arrive; cached copy only when offline. */
-const V="study-track-v6",SHELL=["./","index.html","manifest.webmanifest","icon-192.png","icon-512.png","app-sync.js","supabase-config.js"];
+const V="study-track-v7",SHELL=["./","index.html","manifest.webmanifest","icon-192.png","icon-512.png","app-sync.js","supabase-config.js"];
 self.addEventListener("install",e=>{e.waitUntil(caches.open(V).then(c=>Promise.all(SHELL.map(u=>fetch(u,{cache:"reload"}).then(r=>r.ok&&c.put(u,r)).catch(()=>{})))).then(()=>self.skipWaiting()))});
 self.addEventListener("activate",e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x!=V).map(x=>caches.delete(x)))).then(()=>self.clients.claim()))});
 self.addEventListener("message",e=>{if(e.data=="skip")self.skipWaiting()});

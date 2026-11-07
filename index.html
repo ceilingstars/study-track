@@ -134,10 +134,10 @@ const subD=s=>{const o=Object.assign({goal:0,sem:1,year:"",exam:"",units:[],mark
  if(Array.isArray(s.ch)&&s.ch.length&&!o.units.length)o.units=[{id:rid("u"),t:"Chapters",ch:s.ch.map(c=>({id:rid("c"),t:c.t,d:!!c.d}))}];
  if(s.grade!=null&&!o.marks.post&&!o.marks.int.length)o.marks={int:[],post:{m:+s.grade,x:20}};
  delete o.ch;delete o.sp;delete o.grade;delete o.prev;return o};
-const norm=o=>({subs:(o.subs||o.subjects||[]).map(subD),ses:(o.ses||o.sessions||[]).map(s=>Object.assign({},s,{t:s.t!=null?s.t:(s.note||""),cat:CATS[s.cat]?s.cat:"study"})),plans:(o.plans||[]).map(p=>Object.assign({},p,{cat:CATS[p.cat]?p.cat:"study"})),tasks:o.tasks||[],notes:o.notes||{},goal:o.goal||{d:120,w:840},pass:o.pass||50,profile:o.profile||{name:""},sr:{gaps:(o.sr&&o.sr.gaps&&o.sr.gaps.length==6)?o.sr.gaps:SRG.slice(),items:(o.sr&&o.sr.items)||[]}});
+const norm=o=>({subs:(o.subs||o.subjects||[]).map(subD),ses:(o.ses||o.sessions||[]).map(s=>Object.assign({},s,{t:s.t!=null?s.t:(s.note||""),cat:CATS[s.cat]?s.cat:"study"})),plans:(o.plans||[]).map(p=>Object.assign({},p,{cat:CATS[p.cat]?p.cat:"study"})),tasks:o.tasks||[],recur:o.recur||[],notes:o.notes||{},goal:o.goal||{d:120,w:840},pass:o.pass||50,profile:o.profile||{name:""},sr:{gaps:(o.sr&&o.sr.gaps&&o.sr.gaps.length==6)?o.sr.gaps:SRG.slice(),items:(o.sr&&o.sr.items)||[]}});
 let S=norm({});
 try{const raw=localStorage.getItem(K)||localStorage.getItem("studytracker.v1");if(raw)S=norm(JSON.parse(raw))}catch(e){}
-function mergeIn(o){const b=norm(o);["subs","ses","plans","tasks"].forEach(k=>b[k].forEach(x=>{if(!S[k].some(y=>y.id==x.id))S[k].push(x)}));b.sr.items.forEach(x=>{if(!S.sr.items.some(y=>y.id==x.id))S.sr.items.push(x)});Object.keys(b.notes).forEach(k=>{if(!S.notes[k])S.notes[k]=b.notes[k]})}
+function mergeIn(o){const b=norm(o);["subs","ses","plans","tasks","recur"].forEach(k=>{S[k]=S[k]||[];b[k].forEach(x=>{if(!S[k].some(y=>y.id==x.id))S[k].push(x)})});b.sr.items.forEach(x=>{if(!S.sr.items.some(y=>y.id==x.id))S.sr.items.push(x)});Object.keys(b.notes).forEach(k=>{if(!S.notes[k])S.notes[k]=b.notes[k]})}
 {let dn=false;try{dn=localStorage.getItem(MK)=="1"}catch(e){}
  if(!dn){mergeIn(BACKUP);try{localStorage.setItem(K,JSON.stringify(S));localStorage.setItem(MK,"1")}catch(e){}}}
 
@@ -224,13 +224,13 @@ function dayView(){const k=iso(A),ms=monday(A),
   ${tk.map(taskRow).join("")||'<p class="mut">No tasks for this day.</p>'}</div>
  <div class="card"><h2>Study log · ${hm(sum(ss))}</h2>${logRows(ss)||'<p class="mut">Nothing logged on this day.</p>'}</div></div>
  <div class="card"><div class="mut" style="margin-bottom:8px">Day · ${pl.filter(x=>x.done).length}/${pl.length} plans completed · studied ${hm(sum(ss))}</div>${grid([k])}</div></div>`}
-function taskRow(x){const s=x.subj?sub(x.subj):null;return `<div class="trow${x.done?" dn":""}"><input type="checkbox" data-a="tdone" data-id="${x.id}"${x.done?" checked":""}><div style="min-width:0"><b>${esc(x.t)}</b><div class="mut">${s?`<span style="color:${s.color}">●</span> ${esc(s.name)} · `:""}${x.kind=="deadline"?"Deadline":"To-do"} · ${rel(x.date)}</div></div><span class="sp"></span><button data-a="tstudy" data-id="${x.id}">Study</button><button class="ib" data-a="edtask" data-id="${x.id}" title="Edit">⋯</button></div>`}
+function taskRow(x){const s=x.subj?sub(x.subj):null;return `<div class="trow${x.done?" dn":""}"><input type="checkbox" data-a="tdone" data-id="${x.id}"${x.done?" checked":""}><div style="min-width:0"><b>${esc(x.t)}</b><div class="mut">${s?`<span style="color:${s.color}">●</span> ${esc(s.name)} · `:""}${x.kind=="deadline"?"Deadline":"To-do"} · ${rel(x.date)}${x.rid?" · 🔁 "+rtxt(x.rid):""}</div></div><span class="sp"></span><button data-a="tstudy" data-id="${x.id}">Study</button><button class="ib" data-a="edtask" data-id="${x.id}" title="Edit">⋯</button></div>`}
 
 /* ---------- planning (month) ---------- */
 function planning(){const r=rng("month"),td=iso(new Date()),tdS=S.ses.filter(x=>x.date==td),up=S.plans.filter(x=>x.date>=td&&!x.done),
- dl=S.tasks.filter(x=>x.kind=="deadline"&&!x.done),todo=S.tasks.filter(x=>x.kind!="deadline"&&!x.done),
+ dl=S.tasks.filter(x=>x.kind=="deadline"&&!x.done&&!rfar(x)),todo=S.tasks.filter(x=>x.kind!="deadline"&&!x.done&&!rfar(x)),
  wk=monday(new Date()),wm=sum(S.ses.filter(x=>x.date>=iso(wk)&&x.date<=iso(ad(wk,6)))),tm_=sum(tdS),gd=S.goal.d,gw=S.goal.w,
- nx=S.tasks.filter(x=>!x.done).sort((a,b)=>a.date<b.date?-1:1).slice(0,6),sd=S.sr.items.map(srInfo),sdue=sd.filter(f=>f.st=="due").length,sover=sd.filter(f=>f.st=="over").length;
+ nx=S.tasks.filter(x=>!x.done&&!rfar(x)).sort((a,b)=>a.date<b.date?-1:1).slice(0,6),sd=S.sr.items.map(srInfo),sdue=sd.filter(f=>f.st=="due").length,sover=sd.filter(f=>f.st=="over").length;
  let m=`<div class="mg">${["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map(x=>`<div class="mh">${x}</div>`).join("")}`;
  for(let d=ad(r.s,-((r.s.getDay()+6)%7));d<=r.e||d.getDay()!=1;d=ad(d,1)){const k=iso(d),t=sum(S.ses.filter(x=>x.date==k)),pl=S.plans.filter(x=>x.date==k),pm=sum(pl.filter(x=>!x.done));
   m+=`<div class="mc${d.getMonth()!=r.s.getMonth()?" out":""}${k==td?" tdy":""}" data-a="goday" data-d="${k}"><b>${d.getDate()}</b>${S.notes[k]?`<div class="mn">${esc(S.notes[k])}</div>`:""}${t?`<div style="color:var(--ac)">Tracked ${hm(t)}</div>`:""}${pm?`<div class="mut">Planned ${hm(pm)}</div>`:""}<div>${pl.slice(0,6).map(x=>`<span class="dot" style="background:${sub(x.subj).color}${x.done?";opacity:.4":""}"></span>`).join("")}</div></div>`}
@@ -451,7 +451,7 @@ function subsView(){return `<div class="card"><h2>Subjects</h2>${S.subs.map(s=>`
  <div class="card"><h2>Goals and profile</h2><div class="mut">Daily ${hm(S.goal.d)} · Weekly ${hm(S.goal.w)} · Pass mark ${S.pass}%${S.profile.name?" · Receipts show @"+esc(S.profile.name.replace(/^@/,"")):""}</div><button data-a="goal" style="margin-top:8px">Edit goals and profile</button></div>
  <div class="card"><h2>Data</h2><div class="row"><button data-a="bk">Backup and restore</button><button data-a="dl">Download backup file</button><button data-a="imp">Import backup file</button><button data-a="rst">Reset all</button></div>${window.__signOut?`<div class="row" style="margin-top:12px"><span class="mut">Signed in as ${esc(window.__acct||"")}</span><span class="sp"></span><button data-a="so">Sign out</button></div><div class="row" style="margin-top:8px"><span class="mut">App version ${VER}</span><span class="sp"></span><button data-a="refapp">Refresh app</button></div>`:""}<p class="mut" id="dnote2">Data is saved in this browser. When this page is opened signed in on claude.ai it is also kept in your private cloud copy, so it follows you across devices. Import adds a backup file to what you already have, without duplicates.</p></div>`}
 
-function render(){const old=$("gs"),sc=old?old.scrollTop:null;
+function render(){if(ensureRecur())save();const old=$("gs"),sc=old?old.scrollTop:null;
  document.querySelectorAll("[data-a=tab]").forEach(b=>b.classList.toggle("on",b.dataset.v==T));
  const nv=T=="week"||T=="day"||T=="plan";$("nav").hidden=!nv;
  if(nv){const r=rng(T=="week"?"week":T=="day"?"day":"month");
@@ -472,9 +472,39 @@ function ed(kind,o){if(!S.subs.length){toast("Add a subject first");T="subs";ren
 function subF(s){dlg(`<h2>${s?"Edit":"Add"} subject</h2><label>Name</label><input name="n" required value="${s?esc(s.name):""}"><label>Weekly goal (minutes, optional)</label><input type="number" name="g" min="0" value="${s?s.goal:0}"><label>Semester</label><select name="sem"><option value="1"${s&&s.sem==2?"":" selected"}>1</option><option value="2"${s&&s.sem==2?" selected":""}>2</option></select><label>Year / programme (e.g. Phase 2, 2026)</label><input name="y" list="yl" value="${s?esc(s.year):""}"><datalist id="yl">${[...new Set(S.subs.map(z=>z.year).filter(Boolean))].map(y=>`<option value="${esc(y)}">`).join("")}</datalist><label>Exam date</label><input type="date" name="ex" value="${s?s.exam:""}"><label>Colour</label><input type="color" name="c" value="${s?s.color:COL[S.subs.length%8]}">${s?`<label><input type="checkbox" name="x"> Delete this subject with its sessions, plans, tasks and syllabus</label>`:""}`,f=>{
  const v={goal:+f.get("g")||0,sem:+f.get("sem"),year:f.get("y").trim(),exam:f.get("ex"),color:f.get("c")};
  if(s){if(f.get("x")){S.subs=S.subs.filter(z=>z!=s);S.ses=S.ses.filter(z=>z.subj!=s.id);S.plans=S.plans.filter(z=>z.subj!=s.id);S.tasks=S.tasks.filter(z=>z.subj!=s.id);return}Object.assign(s,v,{name:f.get("n")})}else S.subs.push(subD(Object.assign(v,{id:"s"+Date.now(),name:f.get("n")})))})}
-function taskF(o){const n=!o.id;dlg(`<h2>${n?"Add":"Edit"} task</h2><label>Title</label><input name="t" required value="${esc(o.t)}"><label>Type</label><select name="k"><option value="todo"${o.kind=="deadline"?"":" selected"}>To-do</option><option value="deadline"${o.kind=="deadline"?" selected":""}>Deadline</option></select><label>Subject</label><select name="s"><option value="">None</option>${S.subs.map(s=>`<option value="${s.id}"${s.id==o.subj?" selected":""}>${esc(s.name)}</option>`).join("")}</select><label>Date</label><input type="date" name="d" value="${o.date}" required>${n?"":`<label><input type="checkbox" name="dn"${o.done?" checked":""}> Done</label><label><input type="checkbox" name="x"> Delete</label>`}`,f=>{
- if(!n&&f.get("x")){S.tasks.splice(S.tasks.indexOf(o),1);return}
- Object.assign(o,{t:f.get("t"),kind:f.get("k"),subj:f.get("s"),date:f.get("d"),done:!!f.get("dn")});if(n){o.id="k"+Date.now();S.tasks.push(o)}})}
+/* ---------- recurring tasks ---------- */
+const WDN=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+const rfar=x=>x.rid&&x.date>addDays(iso(mid(new Date())),1);
+function rtxt(id){const r=(S.recur||[]).find(z=>z.id==id);if(!r)return"repeats";const e=r.n>1?"every "+r.n+" ":"";
+ return r.f=="d"?(r.n>1?"every "+r.n+" days":"daily"):r.f=="w"?(e+(r.n>1?"weeks":"weekly")+(r.days&&r.days.length?" on "+r.days.map(i=>WDN[i]).join(", "):"")):(r.n>1?"every "+r.n+" months":"monthly")}
+function rmatch(r,d){const s=pd(r.start),diff=Math.round((mid(d)-s)/864e5);if(diff<0)return false;const n=Math.max(1,r.n|0);
+ if(r.f=="d")return diff%n==0;
+ if(r.f=="w"){const ds=r.days&&r.days.length?r.days:[s.getDay()];if(!ds.includes(d.getDay()))return false;const m0=ad(s,-((s.getDay()+6)%7)),wi=Math.floor(Math.round((mid(d)-m0)/864e5)/7);return wi%n==0}
+ const mo=(d.getFullYear()-s.getFullYear())*12+d.getMonth()-s.getMonth();return mo>=0&&mo%n==0&&d.getDate()==Math.min(s.getDate(),new Date(d.getFullYear(),d.getMonth()+1,0).getDate())}
+function ensureRecur(){if(!S.recur||!S.recur.length)return 0;const today=mid(new Date()),to=ad(today,14),lo=ad(today,-45),have=new Set(S.tasks.filter(x=>x.rid).map(x=>x.rid+"|"+x.date));let c=0;
+ S.recur.forEach(r=>{let d=pd(r.start)<lo?lo:pd(r.start);for(;d<=to;d=ad(d,1)){const k=iso(d);if(r.until&&k>r.until)break;if((r.skip||[]).includes(k)||have.has(r.id+"|"+k)||!rmatch(r,d))continue;
+  S.tasks.push({id:"r"+r.id+"_"+k,rid:r.id,t:r.t,kind:r.kind,subj:r.subj,date:k,done:false});have.add(r.id+"|"+k);c++}});return c}
+function taskF(o){const n=!o.id,R=!n&&o.rid?(S.recur||[]).find(r=>r.id==o.rid):null,rf0=R?R.f:"",rn0=R?R.n:1,rd0=R?(R.days||[]):[],ru0=R?(R.until||""):"";
+ dlg(`<h2>${n?"Add":"Edit"} task</h2><label>Title</label><input name="t" required value="${esc(o.t)}"><label>Type</label><select name="k"><option value="todo"${o.kind=="deadline"?"":" selected"}>To-do</option><option value="deadline"${o.kind=="deadline"?" selected":""}>Deadline</option></select><label>Subject</label><select name="s"><option value="">None</option>${S.subs.map(s=>`<option value="${s.id}"${s.id==o.subj?" selected":""}>${esc(s.name)}</option>`).join("")}</select><label>Date</label><input type="date" name="d" value="${o.date}" required>
+ <label>Repeat</label><select name="rf"><option value=""${rf0==""?" selected":""}>Does not repeat</option><option value="d"${rf0=="d"?" selected":""}>Daily</option><option value="w"${rf0=="w"?" selected":""}>Weekly</option><option value="m"${rf0=="m"?" selected":""}>Monthly</option></select>
+ <label>Every (1 = every day, week or month)</label><input type="number" name="rn" min="1" max="30" value="${rn0}">
+ <label>Weekly: repeat on (leave empty to use the date's weekday)</label><div class="row" style="gap:10px;flex-wrap:wrap">${WDN.map((w,i)=>`<label style="margin:0"><input type="checkbox" name="wd${i}"${rd0.includes(i)?" checked":""}> ${w}</label>`).join("")}</div>
+ <label>Ends on (optional)</label><input type="date" name="ru" value="${ru0}">
+ ${R?`<label><input type="checkbox" name="ap"> Apply title, subject and repeat changes to all upcoming repeats</label>`:""}
+ ${n?"":`<label><input type="checkbox" name="dn"${o.done?" checked":""}> Done</label><label><input type="checkbox" name="x"> Delete this task</label>${R?`<label><input type="checkbox" name="xa"> Delete this and all upcoming repeats</label>`:""}`}`,f=>{
+ const i=S.tasks.indexOf(o);
+ if(!n&&f.get("x")){if(R){R.skip=R.skip||[];R.skip.push(o.date)}S.tasks.splice(i,1);return}
+ if(!n&&f.get("xa")&&R){S.tasks=S.tasks.filter(z=>!(z.rid==R.id&&!z.done&&z.date>=o.date));R.until=addDays(o.date,-1);if(R.until<R.start)S.recur=S.recur.filter(z=>z!=R);return}
+ const od=o.date,rf=f.get("rf"),rep={n:Math.max(1,Math.min(30,+f.get("rn")||1)),days:[0,1,2,3,4,5,6].filter(k=>f.get("wd"+k)),until:f.get("ru")||""};
+ Object.assign(o,{t:f.get("t"),kind:f.get("k"),subj:f.get("s"),date:f.get("d"),done:!!f.get("dn")});
+ if(n){S.tasks.push(Object.assign(o,{id:"k"+Date.now()}))}
+ if(R&&o.date!=od){R.skip=R.skip||[];R.skip.push(od)}
+ if(rf&&!R){const r=Object.assign({id:"s"+Date.now(),t:o.t,kind:o.kind,subj:o.subj,f:rf,start:o.date,skip:[]},rep);S.recur=S.recur||[];S.recur.push(r);o.rid=r.id;if(n)o.id="r"+r.id+"_"+o.date}
+ else if(R&&f.get("ap")){Object.assign(R,{t:o.t,kind:o.kind,subj:o.subj});
+  S.tasks.forEach(z=>{if(z.rid==R.id&&!z.done&&z.date>o.date){z.t=o.t;z.kind=o.kind;z.subj=o.subj}});
+  if(!rf){R.until=o.date;S.tasks=S.tasks.filter(z=>!(z.rid==R.id&&!z.done&&z.date>o.date))}
+  else if(rf!=R.f||rep.n!=R.n||rep.until!=(R.until||"")||rep.days.join()!=(R.days||[]).join()){Object.assign(R,{f:rf,start:o.date},rep);R.skip=[];S.tasks=S.tasks.filter(z=>!(z.rid==R.id&&!z.done&&z.date>o.date))}}
+ })}
 function goalF(){dlg(`<h2>Goals and profile</h2><label>Daily goal (minutes)</label><input type="number" name="d" min="0" value="${S.goal.d}"><label>Weekly goal (minutes)</label><input type="number" name="w" min="0" value="${S.goal.w}"><label>Pass mark (% of marks)</label><input type="number" name="p" min="1" max="100" value="${S.pass}"><label>Name shown on receipts (optional)</label><input name="nm" placeholder="e.g. fathima" value="${esc(S.profile.name||"")}">`,f=>{S.goal={d:+f.get("d")||0,w:+f.get("w")||0};S.pass=Math.min(100,Math.max(1,+f.get("p")||50));S.profile={name:f.get("nm").trim()}})}
 
 /* ---------- timer ---------- */
@@ -515,7 +545,7 @@ function confetti(){if(matchMedia("(prefers-reduced-motion:reduce)").matches)ret
  const P=Array.from({length:160},()=>({x:c.width/2+(Math.random()-.5)*200,y:c.height*.35,vx:(Math.random()-.5)*14,vy:-Math.random()*13-3,w:6+Math.random()*6,h:4+Math.random()*6,r:Math.random()*6,vr:(Math.random()-.5)*.4,c:cols[Math.random()*cols.length|0]}));const t0=performance.now();
  (function f(t){const e=t-t0;g.clearRect(0,0,c.width,c.height);P.forEach(p=>{p.vy+=.35;p.x+=p.vx;p.y+=p.vy;p.vx*=.99;p.r+=p.vr;g.save();g.globalAlpha=Math.max(0,1-e/3200);g.translate(p.x,p.y);g.rotate(p.r);g.fillStyle=p.c;g.fillRect(-p.w/2,-p.h/2,p.w,p.h);g.restore()});if(e<3200)requestAnimationFrame(f);else c.remove()})(t0)}
 /* ---------- friends and groups (needs sign-in) ---------- */
-const VER="2026.11.06.2",NOTES=["Dates now show as dd/mm/yyyy","You now get a pop-up whenever an app update is available","Group live sessions, now-studying and member of the week"];
+const VER="2026.11.06.3",NOTES=["Recurring tasks: set a repeat (daily, weekly, monthly) when adding a task","Dates now show as dd/mm/yyyy","You now get a pop-up whenever an app update is available","Group live sessions, now-studying and member of the week"];
 const SOC={me:null,fr:[],inc:[],out:[],gr:[],pm:{},off:0,loading:false,err:"",ok:false};let PT=0,GT=0,SK="",PR={on:false,t:0},GS={};
 try{GS=JSON.parse(localStorage.getItem(K+".gs")||"{}")}catch(e){}
 const saveGS=()=>{try{localStorage.setItem(K+".gs",JSON.stringify(GS))}catch(e){}};
