@@ -51,8 +51,20 @@ else{
    const {data:gm}=await sb.from("group_members").select("group_id,user_id"),{data:gs}=await sb.from("groups").select("id,name,code");
    const {data:ps}=await sb.from("profiles").select("*"),byName={};(ps||[]).forEach(p=>byName[p.username]=p);
    const fr=acc.map(r=>Object.assign({fid:r.id},byName[r.username])).filter(p=>p.user_id),byId={};(ps||[]).forEach(p=>byId[p.user_id]=p);
-   const gr=(gs||[]).map(g=>({id:g.id,name:g.name,code:g.code,members:(gm||[]).filter(m=>m.group_id==g.id).map(m=>byId[m.user_id]).filter(Boolean)}));
-   return{me,fr,inc,out,gr}},
+   let ss=[],sm=[],sessErr=false;
+   try{const a=await sb.from("group_sessions").select("*").gte("start_at",new Date(Date.now()-864e5).toISOString()),b=await sb.from("session_members").select("session_id,user_id");if(a.error||b.error)throw 1;ss=a.data||[];sm=b.data||[]}catch(e){sessErr=true}
+   let off=0;try{const t0=Date.now(),{data:sn}=await sb.rpc("server_now");if(sn)off=Date.parse(sn)-(t0+Date.now())/2}catch(e){}
+   const gr=(gs||[]).map(g=>({id:g.id,name:g.name,code:g.code,sessErr,members:(gm||[]).filter(m=>m.group_id==g.id).map(m=>byId[m.user_id]).filter(Boolean),
+    sessions:ss.filter(x=>x.group_id==g.id&&!x.cancelled).map(x=>({id:x.id,title:x.title,start:Date.parse(x.start_at),rounds:x.rounds,focus:x.focus_min,brk:x.break_min,host:x.host,joined:sm.filter(m=>m.session_id==x.id).map(m=>m.user_id)}))}));
+   if(!window.__socSub){window.__socSub=1;let tm;const ch=()=>{clearTimeout(tm);tm=setTimeout(()=>window.__socChange&&window.__socChange(),700)};
+    ["profiles","group_sessions","session_members","group_members","friendships"].forEach(t=>{try{sb.channel("rt-"+t).on("postgres_changes",{event:"*",schema:"public",table:t},ch).subscribe()}catch(e){}})}
+   return{me,fr,inc,out,gr,off}},
+  async setLive(el){const {error}=await sb.rpc("set_live",{el});if(error)throw error},
+  async createSession(o){const {data,error}=await sb.from("group_sessions").insert({group_id:o.gid,host:user.id,title:o.title,start_at:new Date(o.start).toISOString(),rounds:o.rounds,focus_min:o.focus,break_min:o.brk}).select("id").single();if(error)E(error);
+   const {error:e2}=await sb.from("session_members").insert({session_id:data.id,user_id:user.id});if(e2)E(e2);return data.id},
+  async joinSession(id){const {error}=await sb.from("session_members").upsert({session_id:id,user_id:user.id},{onConflict:"session_id,user_id",ignoreDuplicates:true});if(error)E(error)},
+  async leaveSession(id){const {error}=await sb.from("session_members").delete().eq("session_id",id).eq("user_id",user.id);if(error)E(error)},
+  async cancelSession(id){const {error}=await sb.from("group_sessions").update({cancelled:true}).eq("id",id);if(error)E(error)},
   async setUsername(n){n=(n||"").trim().toLowerCase();if(!/^[a-z0-9_]{3,20}$/.test(n))throw new Error("Use 3 to 20 letters, numbers or underscores.");
    const st=myStats(),{error}=await sb.from("profiles").insert({user_id:user.id,username:n,wk:st.wk,wk_start:st.ws,today:st.today,day:st.day,streak:st.streak,xp:st.xp,lvl:st.lvl});if(error)E(error)},
   async addFriend(n){if(!(n||"").trim())throw new Error("Type a username first.");const {error}=await sb.rpc("send_request",{uname:n});if(error)E(error)},
@@ -66,7 +78,7 @@ else{
   box.hidden=true;let last=null;try{last=localStorage.getItem("studytracker.uid")}catch(e){}
   if(last&&last!==u.id)wipeLocal();
   try{localStorage.setItem("studytracker.uid",u.id)}catch(e){}
-  window.__acct=u.email||"";window.__signOut=out;window.__social=window.__social;render();start()};
+  window.__acct=u.email||"";window.__signOut=out;render();start();if(window.__socInit)window.__socInit()};
  sb.auth.onAuthStateChange((ev,s)=>{if(ev=="PASSWORD_RECOVERY"){const p=prompt("Type your new password (6+ characters)");if(p)sb.auth.updateUser({password:p}).then(({error})=>alert(error?nice(error):"Password changed."))}
   onUser(s&&s.user||null)});
  setMode("in")}
