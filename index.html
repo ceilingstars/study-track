@@ -84,6 +84,17 @@ dialog::backdrop{background:rgba(0,0,0,.55)}
 .tp select{padding:7px 6px}
 label{display:block;font-size:13px;color:var(--mut);margin:8px 0 3px}
 #toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--tx);color:var(--bg);padding:8px 14px;border-radius:20px;z-index:70;font-size:13px}
+.gdt{display:grid;grid-template-columns:1fr 1fr 2fr;gap:10px;margin:12px 0}.gdtile{border:1px solid var(--bd);border-radius:12px;padding:12px 14px;background:var(--hi)}.gdtile .gdbig{font-size:26px;font-weight:700;margin-top:6px}.sm{font-size:12px}
+.ngrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px}.ncard{display:flex;align-items:center;gap:10px;border:1px solid var(--bd);border-radius:12px;padding:10px 12px;background:var(--hi)}
+.av{position:relative;display:inline-flex;align-items:center;justify-content:center;border-radius:50%;color:#fff;font-weight:700;flex:none}.av .avd{position:absolute;right:-1px;bottom:-1px;width:10px;height:10px;border-radius:50%;background:var(--ok);border:2px solid var(--card)}
+.gdg{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:16px;align-items:start}.gdp{border:1px solid var(--bd);border-radius:12px;padding:14px;background:var(--hi)}.gdchip{font-size:11px;padding:2px 8px;border-radius:99px;border:1px solid var(--bd);color:var(--mut)}
+.lbr{display:flex;align-items:center;gap:10px;padding:8px 0}.lbr .bar{width:90px;height:4px;border-radius:4px;background:var(--bd);flex:none;overflow:hidden}.lbr .bar i{display:block;height:100%}
+.gchips{display:flex;gap:8px;flex-wrap:wrap}.gdtag{font-size:10px;font-weight:700;letter-spacing:.06em;padding:2px 8px;border-radius:6px;background:var(--ac);color:#fff}
+@media(max-width:760px){.gdt{grid-template-columns:1fr 1fr}.gdt .gdwide{grid-column:1/-1}.gdg{grid-template-columns:1fr}.lbr .bar{width:50px}}
+.gds{display:flex;gap:16px;margin-top:10px;padding:14px;border:1px solid var(--bd);border-radius:14px;background:var(--hi)}.gdd{flex:none;width:118px;align-self:flex-start;text-align:center;padding:12px 8px;border-radius:12px;background:var(--card);border:1px solid var(--bd)}
+.gdc{font-size:12px;font-weight:700;letter-spacing:.05em;color:var(--ac)}.gdtm{font-size:28px;font-weight:800;line-height:1.15;margin:4px 0}.gdtm span{font-size:12px;font-weight:600;margin-left:3px;color:var(--mut)}.gdu{font-size:12px;color:var(--mut)}
+.gdm{flex:1;min-width:0}.gdst{display:flex;gap:28px;flex-wrap:wrap}.gdst b{font-size:18px}.gdf{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:1px solid var(--bd)}.gdav{display:inline-flex}.gdav .av{margin-left:-6px;border:2px solid var(--hi)}.gdav .av:first-child{margin-left:0}
+@media(max-width:760px){.gds{flex-direction:column}.gdd{width:auto;align-self:stretch;display:flex;align-items:baseline;justify-content:center;gap:10px;flex-wrap:wrap}.gdtm{margin:0}}
 #auth{position:fixed;inset:0;z-index:100;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:20px}
 #auth .box{width:100%;max-width:360px;background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:22px}
 #auth h1{margin-bottom:4px}#auth form{display:grid;gap:10px;margin-top:14px}#auth input{width:100%}
@@ -545,7 +556,7 @@ function confetti(){if(matchMedia("(prefers-reduced-motion:reduce)").matches)ret
  const P=Array.from({length:160},()=>({x:c.width/2+(Math.random()-.5)*200,y:c.height*.35,vx:(Math.random()-.5)*14,vy:-Math.random()*13-3,w:6+Math.random()*6,h:4+Math.random()*6,r:Math.random()*6,vr:(Math.random()-.5)*.4,c:cols[Math.random()*cols.length|0]}));const t0=performance.now();
  (function f(t){const e=t-t0;g.clearRect(0,0,c.width,c.height);P.forEach(p=>{p.vy+=.35;p.x+=p.vx;p.y+=p.vy;p.vx*=.99;p.r+=p.vr;g.save();g.globalAlpha=Math.max(0,1-e/3200);g.translate(p.x,p.y);g.rotate(p.r);g.fillStyle=p.c;g.fillRect(-p.w/2,-p.h/2,p.w,p.h);g.restore()});if(e<3200)requestAnimationFrame(f);else c.remove()})(t0)}
 /* ---------- friends and groups (needs sign-in) ---------- */
-const VER="2026.11.06.3",NOTES=["Recurring tasks: set a repeat (daily, weekly, monthly) when adding a task","Dates now show as dd/mm/yyyy","You now get a pop-up whenever an app update is available","Group live sessions, now-studying and member of the week"];
+const VER="2026.11.10",NOTES=["Groups now have a dashboard view with stats, group goals and a leaderboard","Recurring tasks: set a repeat (daily, weekly, monthly) when adding a task","Dates now show as dd/mm/yyyy","You now get a pop-up whenever an app update is available","Group live sessions, now-studying and member of the week"];
 const SOC={me:null,fr:[],inc:[],out:[],gr:[],pm:{},off:0,loading:false,err:"",ok:false};let PT=0,GT=0,SK="",PR={on:false,t:0},GS={};
 try{GS=JSON.parse(localStorage.getItem(K+".gs")||"{}")}catch(e){}
 const saveGS=()=>{try{localStorage.setItem(K+".gs",JSON.stringify(GS))}catch(e){}};
@@ -553,13 +564,14 @@ const nowS=()=>Date.now()+(SOC.off||0);
 const hms=s=>{s=Math.max(0,Math.floor(s));const h=s/3600|0,m=(s%3600)/60|0,x=s%60;return(h?h+":"+String(m).padStart(2,"0"):m)+":"+String(x).padStart(2,"0")};
 const dtl=d=>{const p=n=>String(n).padStart(2,"0");return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate())+"T"+p(d.getHours())+":"+p(d.getMinutes())};
 const isLive=(p,n)=>!!(p&&p.studying_since&&p.live_at&&n-Date.parse(p.live_at)<90000);
-function myStats(){const td=iso(mid(new Date())),ws=iso(monday(new Date()));let wk=0,today=0;S.ses.forEach(x=>{if(x.date==td)today+=x.min;if(x.date>=ws&&x.date<=td)wk+=x.min});const L=lvl();return{wk,ws,today,day:td,streak:streakOf(S.ses),xp:L.xp,lvl:L.L}}
+function myStats(){const td=iso(mid(new Date())),ws=iso(monday(new Date()));let wk=0,today=0;S.ses.forEach(x=>{if(x.date==td)today+=x.min;if(x.date>=ws&&x.date<=td)wk+=x.min});const L=lvl();const mk=td.slice(0,7);let mo=0;S.ses.forEach(x=>{if(x.date.slice(0,7)==mk&&x.date<=td)mo+=x.min});return{wk,ws,today,day:td,mo,mk,streak:streakOf(S.ses),xp:L.xp,lvl:L.L}}
 function pubSoon(){clearTimeout(PT);PT=setTimeout(()=>{if(window.__publish)window.__publish(myStats())},3000)}
 function socLoad(q){if(!window.__social)return;if(!q){SOC.loading=true;if(T=="fr"||T=="gr")render()}
- window.__social.load().then(r=>{const old=SOC.gr.map(g=>g.id).join()+"|"+SOC.inc.length+"|"+SOC.fr.length+"|"+!!SOC.me;Object.assign(SOC,r,{err:"",ok:true});SOC.off=r.off||0;SOC.pm={};[SOC.me].concat(SOC.fr).concat(...SOC.gr.map(g=>g.members)).forEach(p=>p&&(SOC.pm[p.user_id]=p));SOC.loading=false;
+ window.__social.load().then(r=>{const old=SOC.gr.map(g=>g.id).join()+"|"+SOC.inc.length+"|"+SOC.fr.length+"|"+!!SOC.me;Object.assign(SOC,r,{err:"",ok:true});SOC.off=r.off||0;SOC.at=Date.now();SOC.pm={};[SOC.me].concat(SOC.fr).concat(...SOC.gr.map(g=>g.members)).forEach(p=>p&&(SOC.pm[p.user_id]=p));SOC.loading=false;
   if(q)patchSoc(old!=SOC.gr.map(g=>g.id).join()+"|"+SOC.inc.length+"|"+SOC.fr.length+"|"+!!SOC.me);else if(T=="fr"||T=="gr")render()})
  .catch(e=>{SOC.loading=false;if(!q){SOC.err=(e&&e.message)||"Could not load. Check your connection.";if(T=="fr"||T=="gr")render()}})}
-function patchSoc(full){if(T=="gr"){if(full||SOC.gr.some(g=>!$("gl_"+g.id)))return render();SOC.gr.forEach(g=>{$("gl_"+g.id).innerHTML=gLive(g);$("gs_"+g.id).innerHTML=gSessHtml(g)})}
+function selG(){return SOC.gr.find(g=>g.id==SOC.sel)||SOC.gr[0]}
+function patchSoc(full){if(T=="gr"){const g=selG();if(full||!g||!$("gl_"+g.id))return render();$("gl_"+g.id).innerHTML=gLive(g);$("gs_"+g.id).innerHTML=gSessHtml(g)}
  else if(T=="fr"){if(full||!$("fb"))return render();$("fb").innerHTML=frBoard()}}
 function socDo(fn,okMsg){Promise.resolve().then(fn).then(()=>{if(okMsg)toast(okMsg);socLoad()}).catch(e=>toast((e&&e.message)||"Something went wrong"))}
 window.__socInit=()=>socLoad(true);window.__socChange=()=>socLoad(true);
@@ -580,37 +592,52 @@ function friendsV(){const g=socGate();if(g)return g;const me=SOC.me;
  ${SOC.fr.length?`<div style="margin-top:10px">${SOC.fr.map(p=>`<button data-a="fdel" data-id="${p.fid}" style="margin:0 6px 6px 0" title="Remove friend">Remove @${esc(p.username)}</button>`).join("")}</div>`:""}</div>
  ${SOC.out.length?`<div class="card"><h2>Sent requests</h2>${SOC.out.map(r=>`<div class="row"><span>@${esc(r.username)} · waiting</span><span class="sp"></span><button data-a="fdel" data-id="${r.id}">Cancel</button></div>`).join("")}</div>`:""}`}
 /* group panels */
-function gLive(g){const n=nowS(),me=SOC.me,ms=g.members.map(p=>Object.assign({},p,{w:pw(p)})).sort((a,b)=>b.w-a.w),lead=ms[0]&&ms[0].w>0?ms[0]:null,live=g.members.filter(p=>isLive(p,n));
- return`<div style="margin:10px 0;padding:10px 12px;border:1px solid var(--bd);border-radius:10px;background:var(--hi)">${lead?`👑 <b>Member of the week</b> · @${esc(lead.username)}${lead.user_id==me.user_id?" (you)":""} · <b>${hm(lead.w)}</b> <span class="mut">so far this week</span>`:'<span class="mut">👑 Member of the week appears once someone logs study time this week.</span>'}</div>
- <h2 style="margin:14px 0 6px">Now studying</h2>${live.length?live.map(p=>`<div class="row" style="padding:5px 0;border-top:1px solid var(--bd)"><span>🟢</span><b>@${esc(p.username)}</b>${p.user_id==me.user_id?'<span class="mut">(you)</span>':""}<span class="sp"></span><span class="mut">session</span><b data-live="${p.user_id}" data-k="s">${hms((n-Date.parse(p.studying_since))/1e3)}</b><span class="mut">· today</span><b data-live="${p.user_id}" data-k="t">${hms(pt(p)*60+(n-Date.parse(p.studying_since))/1e3)}</b></div>`).join(""):'<div class="mut">Nobody is studying right now.</div>'}
- <h2 style="margin:14px 0 4px">Weekly leaderboard</h2>${board(g.members,me.user_id)}`}
+const avc=u=>{let h=0;for(const c of u)h=(h*31+c.charCodeAt(0))%360;return h};
+const av=(p,z,live)=>`<span class="av" style="width:${z}px;height:${z}px;font-size:${Math.round(z*.42)}px;background:hsl(${avc(p.username)} 45% 38%)">${esc(p.username[0].toUpperCase())}${live?'<i class="avd"></i>':""}</span>`;
+const LBC=["#22d3ee","#f59e0b","#ec4899","#a78bfa","#34d399","#60a5fa"];
+function gLive(g){const n=nowS(),me=SOC.me,ms=g.members.map(p=>Object.assign({},p,{w:pw(p)})).sort((a,b)=>b.w-a.w||pt(b)-pt(a)),tot=ms.reduce((t,p)=>t+p.w,0),lead=ms[0]&&ms[0].w>0?ms[0]:null,live=g.members.filter(p=>isLive(p,n)),wk0=monday(new Date()).getTime(),
+ nS=(g.sessions||[]).filter(x=>{const e=sEnd(x);return e<=n&&e>=wk0}).length,mk=iso(mid(new Date())).slice(0,7),mm=g.members.reduce((t,p)=>t+(p.mo_key==mk?p.mo||0:0),0),gh=g.goal_hours||0,pc=gh?Math.min(100,Math.round(mm/(gh*60)*100)):0,own=g.owner==me.user_id,top=ms[0]?ms[0].w:0,rows=SOC.lbAll?ms:ms.slice(0,5);
+ return`<div class="gdt"><div class="gdtile"><div class="mut">🕒 This week</div><div class="gdbig">${hm(tot)||"0m"}</div></div><div class="gdtile"><div class="mut">📈 Avg / member</div><div class="gdbig">${hm(Math.round(tot/Math.max(1,ms.length)))||"0m"}</div></div>
+ <div class="gdtile gdwide"><div class="mut">🏆 Member of the week</div>${lead?`<div class="row" style="margin-top:6px">${av(lead,28)}<b>${esc(lead.username)}</b>${lead.user_id==me.user_id?'<span class="mut">(you)</span>':""}</div><div class="mut sm" style="margin-top:4px">${hm(lead.w)} tracked · Weekly hours leader</div>`:'<div class="mut" style="margin-top:6px">Appears once someone logs study time this week</div>'}<div class="mut sm">${nS} recorded group session${nS==1?"":"s"}</div></div></div>
+ <div class="row" style="margin:18px 0 8px"><h2 style="margin:0">⏱ Now studying</h2><span class="sp"></span><span class="sm" style="color:var(--ok)">● ${live.length} studying</span></div>
+ ${live.length?`<div class="ngrid">${live.map(p=>{const e=(n-Date.parse(p.studying_since))/1e3;return`<div class="ncard">${av(p,44,true)}<div style="min-width:0"><b style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(p.username)}${p.user_id==me.user_id?" (you)":""}</b><b data-live="${p.user_id}" data-k="s" style="color:var(--ok)">${hms(e)}</b><div class="mut sm">today <span data-live="${p.user_id}" data-k="t">${hms(pt(p)*60+e)}</span></div></div></div>`}).join("")}</div>`:'<div class="mut">Nobody is studying right now.</div>'}
+ <div class="gdg"><div class="gdp"><h2 style="margin:0 0 10px">🎯 Goals</h2>${gh?`<div class="row"><b>${esc(g.goal_title||"Group goal")}</b><span class="sp"></span><b>${pc}%</b></div><div class="pb" style="margin:8px 0"><i style="width:${pc}%;background:var(--warn)"></i></div><div class="mut sm">This month · ${hm(mm)||"0m"} / ${gh}h · Shared study records</div>${own?'<button data-a="gg" data-id="'+g.id+'" style="margin-top:10px">Edit goal</button>':""}`:`<div class="mut">No group goal yet.</div>${own?'<button class="p" data-a="gg" data-id="'+g.id+'" style="margin-top:10px">Set a group goal</button>':""}`}</div>
+ <div class="gdp"><div class="row"><h2 style="margin:0">🏆 Leaderboard</h2><span class="gdchip" data-upd>Updated just now</span><span class="sp"></span><button class="ib" data-a="lball" style="width:auto;padding:3px 8px">${SOC.lbAll?"Show less":"View all →"}</button></div><b style="display:block;margin:10px 0 2px">This week</b>
+ ${rows.map((p,i)=>`<div class="lbr"><b style="width:18px;text-align:center;color:${i==0?"var(--warn)":i==2?"#f97316":"var(--mut)"}">${i+1}</b>${av(p,34,isLive(p,n))}<b style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(p.username)}${p.user_id==me.user_id?' <span class="mut">(you)</span>':""}</b><span class="bar"><i style="width:${top?Math.round(p.w/top*100):0}%;background:${LBC[i%LBC.length]}"></i></span><b style="width:64px;text-align:right">${hm(p.w)||"0m"}</b></div>`).join("")}</div></div>`}
 function sph(x,n){const c=x.focus+x.brk,tot=(x.rounds*x.focus+(x.rounds-1)*x.brk)*6e4,t=n-x.start;if(t<0)return{k:"up",left:-t/1e3};if(t>=tot)return{k:"done",left:0};
  const m=t/6e4,r=Math.floor(m/c),w=m-r*c;return w<x.focus?{k:"f",r:r+1,left:(x.focus-w)*60,ps:x.start+r*c*6e4,pr:w/x.focus}:{k:"b",r:r+1,left:(c-w)*60,ps:x.start+(r*c+x.focus)*6e4,pr:(w-x.focus)/Math.max(1,x.brk)}}
 const sEnd=x=>x.start+(x.rounds*x.focus+(x.rounds-1)*x.brk)*6e4;
+const dur=m=>{m=Math.round(m);const h=Math.floor(m/60),r=m%60;return(h?h+" h":"")+(h&&r?" ":"")+(r||!h?r+" min":"")};
+const t12d=d=>{const x=d.toLocaleTimeString([],{hour:"numeric",minute:"2-digit",hour12:true}).replace(/\s?([AaPp])\.?[Mm]\.?/,(m,c)=>" "+c.toUpperCase()+"M"),i=x.lastIndexOf(" ");return[x.slice(0,i),x.slice(i+1)]};
 function gSessHtml(g){if(g.sessErr)return'<div class="mut">Live sessions need the new Supabase setup script (supabase-live.sql). Run it once, then tap Refresh.</div>';
- const n=nowS(),me=SOC.me,list=(g.sessions||[]).filter(x=>n-sEnd(x)<36e5).sort((a,b)=>a.start-b.start);if(!list.length)return'<div class="mut">No sessions scheduled. Plan one below.</div>';
- return list.map(x=>{const p=sph(x,n),j=x.joined.includes(me.user_id),nm=x.joined.map(u=>{const q=g.members.find(m=>m.user_id==u);return q?"@"+q.username:""}).filter(Boolean).join(", ");
-  const tm=fd(new Date(x.start),{weekday:"short",day:"numeric",month:"numeric",year:"numeric"})+", "+new Date(x.start).toLocaleTimeString([],{hour:"numeric",minute:"2-digit",hour12:true});
-  return`<div style="margin-top:8px;padding:10px 12px;border:1px solid var(--bd);border-radius:10px"><div class="row"><b>${esc(x.title)}</b><span class="sp"></span>${p.k=="f"?'<span style="color:var(--ok)">● Live</span>':p.k=="b"?'<span style="color:var(--warn)">● Break</span>':p.k=="up"?'<span class="mut">Upcoming</span>':'<span class="mut">Finished</span>'}</div>
-  <div class="mut">${tm} · ${x.rounds} round${x.rounds==1?"":"s"} × ${x.focus} min focus${x.brk?" · "+x.brk+" min breaks":""}</div>
-  ${p.k=="up"?`<div style="margin-top:6px">Starts in <b data-cd="${x.id}">${hms(p.left)}</b></div>`:p.k=="done"?"":`<div style="margin-top:6px"><b data-ph="${x.id}">Round ${p.r} of ${x.rounds} · ${p.k=="f"?"Focus":"Break"}</b> · <b data-cd="${x.id}">${hms(p.left)}</b> left</div><div class="pb" style="margin:6px 0 0"><i data-pg="${x.id}" style="width:${Math.round((p.pr||0)*100)}%;background:${p.k=="f"?"var(--ok)":"var(--warn)"}"></i></div>`}
-  <div class="mut" style="margin-top:6px">In: ${nm||"nobody yet"}</div>
-  <div class="row" style="margin-top:8px">${j?`<span style="color:var(--ok)">✓ You're in</span><button data-a="gsl" data-id="${x.id}">Leave</button>`:p.k!="done"?`<button class="p" data-a="gsj" data-id="${x.id}">Join</button>`:""}${x.host==me.user_id&&p.k!="done"?`<button data-a="gsx" data-id="${x.id}">Cancel session</button>`:""}</div></div>`}).join("")}
-function groupsV(){const g=socGate();if(g)return g;const subO=S.subs.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join("")||'<option value="">(no subjects)</option>',d0=dtl(new Date(nowS()+10*6e4));
+ const n=nowS(),me=SOC.me,list=(g.sessions||[]).filter(x=>SOC.sAll||n-sEnd(x)<36e5).sort((a,b)=>a.start-b.start);if(!list.length)return'<div class="mut">No sessions scheduled. Plan one below.</div>';
+ return list.map(x=>{const p=sph(x,n),j=x.joined.includes(me.user_id),st=new Date(x.start),en=new Date(sEnd(x)),[t1,ap]=t12d(st),[t2,ap2]=t12d(en),dk=iso(mid(st)),t0=iso(mid(new Date())),
+  chip=p.k=="f"||p.k=="b"?"LIVE":dk==t0?"TODAY":dk==addDays(t0,1)?"TOMORROW":st.toLocaleDateString(undefined,{weekday:"short"}).toUpperCase()+" "+fd(st,{day:"numeric",month:"numeric"}),
+  hostP=g.members.find(m=>m.user_id==x.host),names=x.joined.map(u=>g.members.find(m=>m.user_id==u)).filter(Boolean);
+  return`<div class="gds"><div class="gdd"><div class="gdc" style="${p.k=="f"||p.k=="b"?"color:var(--ok)":p.k=="done"?"color:var(--mut)":""}">${chip}</div><div class="gdtm">${t1}<span>${ap}</span></div><div class="gdu">until ${t2} ${ap2}</div></div>
+  <div class="gdm"><div class="row" style="align-items:flex-start"><b style="font-size:18px">${esc(x.title)}</b><span class="sp"></span>${p.k=="f"?'<span class="gdtag" style="background:var(--ok)">● LIVE</span>':p.k=="b"?'<span class="gdtag" style="background:var(--warn)">● BREAK</span>':p.k=="done"?'<span class="gdtag" style="background:var(--bd)">FINISHED</span>':""}</div>
+  <div class="mut" style="margin:4px 0 10px">📢 Led by ${hostP?esc(hostP.username):"a member"} · 🌐 Shown in your time zone</div>
+  <div class="gdst"><div><b>${x.rounds}</b><div class="mut">round${x.rounds==1?"":"s"}</div></div><div><b>${dur(x.rounds*x.focus)}</b><div class="mut">of study</div></div><div><b>${dur((x.rounds-1)*x.brk)}</b><div class="mut">breaks</div></div></div>
+  ${p.k=="f"||p.k=="b"?`<div style="margin-top:10px"><b data-ph="${x.id}">Round ${p.r} of ${x.rounds} · ${p.k=="f"?"Focus":"Break"}</b> · <b data-cd="${x.id}">${hms(p.left)}</b> left</div><div class="pb" style="margin:6px 0 0"><i data-pg="${x.id}" style="width:${Math.round((p.pr||0)*100)}%;background:${p.k=="f"?"var(--ok)":"var(--warn)"}"></i></div>`:""}
+  <div class="gdf"><span>⏰ <b>${p.k=="up"?"Starts automatically at "+t1+" "+ap:p.k=="done"?"Session ended":"In progress"}</b>${p.k=="up"?` · in <b data-cd="${x.id}">${hms(p.left)}</b>`:""}</span>
+   <span class="gdav">${names.slice(0,4).map(q=>av(q,26)).join("")}</span><span class="mut">${names.length} joined</span><span class="sp"></span>
+   ${j?`<span style="color:var(--ok)">✓ You're in</span><button data-a="gsl" data-id="${x.id}">Leave</button>`:p.k!="done"?`<button class="p" data-a="gsj" data-id="${x.id}">☆ Join</button>`:""}${x.host==me.user_id&&p.k!="done"?`<button data-a="gsx" data-id="${x.id}">Cancel</button>`:""}</div></div></div>`}).join("")}
+function groupsV(){const g=socGate();if(g)return g;const x=selG();SOC.sel=x&&x.id;const subO=S.subs.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join("")||'<option value="">(no subjects)</option>',d0=dtl(new Date(nowS()+10*6e4));
  return`<div class="card"><div class="row"><h2 style="margin:0">Groups</h2><span class="sp"></span><button data-a="socref">${SOC.loading?"…":"Refresh"}</button></div>
- <div class="row" style="margin-top:12px"><input id="gn" placeholder="New group name" style="min-width:180px"><button class="p" data-a="gnew">Create group</button></div>
- <div class="row" style="margin-top:8px"><input id="gc" placeholder="Join with code" style="min-width:180px;text-transform:uppercase"><button data-a="gjoin">Join</button></div></div>
- ${SOC.gr.map(x=>`<div class="card"><div class="row"><h2 style="margin:0">${esc(x.name)}</h2><span class="sp"></span><span class="mut">Code</span><b>${esc(x.code)}</b><button class="ib" data-a="gcopy" data-v="${esc(x.code)}" style="width:auto;padding:3px 8px">Copy</button></div><div class="mut">${x.members.length} member${x.members.length==1?"":"s"}</div>
+ ${SOC.gr.length?`<div class="gchips" style="margin-top:10px">${SOC.gr.map(y=>`<button data-a="gsel" data-id="${y.id}" class="${x&&y.id==x.id?"on":""}">${esc(y.name)}</button>`).join("")}</div>`:""}
+ <details${SOC.gr.length?"":" open"} style="margin-top:10px"><summary style="cursor:pointer;color:var(--ac)">+ Create or join a group</summary>
+ <div class="row" style="margin-top:10px"><input id="gn" placeholder="New group name" style="min-width:180px"><button class="p" data-a="gnew">Create group</button></div>
+ <div class="row" style="margin-top:8px"><input id="gc" placeholder="Join with code" style="min-width:180px;text-transform:uppercase"><button data-a="gjoin">Join</button></div></details></div>
+ ${x?`<div class="card"><div class="row"><h1 style="margin:0;font-size:22px">${esc(x.name)}</h1><span class="mut">${x.members.length} member${x.members.length==1?"":"s"}</span><span class="sp"></span><span class="mut">Code</span><b>${esc(x.code)}</b><button class="ib" data-a="gcopy" data-v="${esc(x.code)}" style="width:auto;padding:3px 8px">Copy</button><button data-a="gleave" data-id="${x.id}">Leave</button></div>
  <div id="gl_${x.id}">${gLive(x)}</div>
- <h2 style="margin:16px 0 4px">Group study sessions</h2><div id="gs_${x.id}">${gSessHtml(x)}</div>
+ <div class="row" style="margin:20px 0 4px"><h2 style="margin:0">🗓 Study sessions</h2><span class="sp"></span><button class="ib" data-a="sall" style="width:auto;padding:3px 8px">${SOC.sAll?"Upcoming only":"All sessions →"}</button></div><div id="gs_${x.id}">${gSessHtml(x)}</div>
  <details style="margin-top:10px"><summary style="cursor:pointer;color:var(--ac)">+ Schedule a group session</summary><div style="display:grid;gap:8px;margin-top:8px;max-width:420px">
   <input id="gst_${x.id}" placeholder="Title (e.g. Forensic revision)" maxlength="60">
   <label class="mut">Start time</label><input id="gsd_${x.id}" type="datetime-local" value="${d0}">
   <label class="mut"><input type="checkbox" id="gsn_${x.id}"> Start right away</label>
   <div class="row"><label class="mut">Rounds <input id="gsr_${x.id}" type="number" min="1" max="12" value="4" style="width:70px"></label><label class="mut">Focus min <input id="gsf_${x.id}" type="number" min="5" max="180" value="25" style="width:70px"></label><label class="mut">Break min <input id="gsb_${x.id}" type="number" min="0" max="60" value="5" style="width:70px"></label></div>
   <label class="mut">Log my time under</label><select id="gss_${x.id}">${subO}</select>
-  <button class="p" data-a="gsnew" data-id="${x.id}">Create session</button></div></details>
- <button data-a="gleave" data-id="${x.id}" style="margin-top:12px">Leave group</button></div>`).join("")||'<div class="card mut">No groups yet. Create one and share its code, or join with a code.</div>'}`}
+  <button class="p" data-a="gsnew" data-id="${x.id}">Create session</button></div></details></div>`:'<div class="card mut">No groups yet. Create one and share its code, or join with a code.</div>'}`}
 function gsNew(gid){const g=k=>$(k+"_"+gid),now=g("gsn").checked,rounds=+g("gsr").value,focus=+g("gsf").value,brk=+g("gsb").value,start=now?nowS()+15e3:new Date(g("gsd").value).getTime(),title=g("gst").value.trim()||"Group study";
  if(!(start>0))return toast("Choose a start time");if(!now&&start<nowS()-6e4)return toast("That start time has passed");
  if(!(rounds>=1&&rounds<=12))return toast("Rounds: 1 to 12");if(!(focus>=5&&focus<=180))return toast("Focus: 5 to 180 minutes");if(!(brk>=0&&brk<=60))return toast("Break: 0 to 60 minutes");
@@ -633,6 +660,7 @@ function gTick(){if(!window.__social||!SOC.ok)return;const n=nowS();
   document.querySelectorAll('[data-ph="'+x.id+'"]').forEach(el=>el.textContent="Round "+p.r+" of "+x.rounds+" · "+(p.k=="f"?"Focus":"Break"));
   document.querySelectorAll('[data-pg="'+x.id+'"]').forEach(el=>el.style.width=Math.round((p.pr||0)*100)+"%")});g.members.forEach(p=>{if(isLive(p,n))key+=p.user_id+","})});
  if(key!==SK){const first=SK==="";SK=key;if(!first)patchSoc(false)}
+ {const sc=Math.floor((Date.now()-(SOC.at||Date.now()))/1e3),tx=sc<10?"Updated just now":sc<60?"Updated "+sc+"s ago":"Updated "+Math.floor(sc/60)+"m ago";document.querySelectorAll("[data-upd]").forEach(e=>{if(e.textContent!=tx)e.textContent=tx})}
  gAuto(n);gPres(n);if(++GT%20==0&&document.visibilityState=="visible"&&(T=="fr"||T=="gr"||GT%60==0))socLoad(true)}
 setInterval(gTick,1000);
 document.addEventListener("click",e=>{const t=e.target.closest("[data-a]");if(!t)return;const a=t.dataset.a,v=t.dataset.v,id=t.dataset.id,now=new Date();
@@ -702,6 +730,10 @@ document.addEventListener("click",e=>{const t=e.target.closest("[data-a]");if(!t
  else if(a=="gnew")socDo(()=>window.__social.createGroup($("gn").value),"Group created")
  else if(a=="gjoin")socDo(()=>window.__social.joinGroup($("gc").value),"Joined")
  else if(a=="gleave"){if(confirm("Leave this group?"))socDo(()=>window.__social.leaveGroup(id))}
+ else if(a=="gsel"){SOC.sel=id;render()}
+ else if(a=="lball"){SOC.lbAll=!SOC.lbAll;patchSoc(false)}
+ else if(a=="sall"){SOC.sAll=!SOC.sAll;render()}
+ else if(a=="gg"){const gx=SOC.gr.find(z=>z.id==id);dlg(`<h2>Group goal</h2><label>Goal name</label><input name="t" required maxlength="60" value="${esc(gx&&gx.goal_title||"")}" placeholder="e.g. November pre exam prep"><label>Target for the whole group this month (hours)</label><input type="number" name="h" min="1" max="100000" required value="${gx&&gx.goal_hours||100}">`,f=>{socDo(()=>window.__social.setGoal(id,f.get("t"),+f.get("h")),"Goal saved")},"Save")}
  else if(a=="gsnew")gsNew(id)
  else if(a=="gsj")gsJoin(id)
  else if(a=="gsl"){delete GS[id];saveGS();socDo(()=>window.__social.leaveSession(id))}
