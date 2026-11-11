@@ -173,18 +173,36 @@ function setSt(st,err){SY.st=st;SY.err=err||"";const e=document.getElementById("
  e.textContent={local:"💾 This device only",syncing:"☁ Saving…",ok:"☁ Synced",err:"⚠ Not synced"}[st];
  e.title={local:"Saved in this browser. Open the shared link signed in to claude.ai to sync across devices.",syncing:"Saving to your private cloud copy",ok:"Saved to your private cloud copy",err:err||"Sync paused; your data is still saved on this device"}[st]}
 const save=()=>{lvChk();pubSoon();const t=Date.now();putLocal(t);SY.at=t;if(SY.ref){SY.dirty=true;setSt("syncing");clearTimeout(SY.timer);SY.timer=setTimeout(push,1200)}};
+const SYK=K+".sy",getSy=()=>{try{return +localStorage.getItem(SYK)||0}catch(e){return 0}},putSy=v=>{try{localStorage.setItem(SYK,String(v))}catch(e){}};
+/* sync safety: a copy of this device's data is kept before anything from the cloud is combined in */
+function stashPre(){try{const j=JSON.stringify(S);if(!S.ses.length&&!S.subs.length&&!S.tasks.length)return;const o=localStorage.getItem(K+".pre");if(o)localStorage.setItem(K+".pre2",o);localStorage.setItem(K+".pre",JSON.stringify({at:Date.now(),json:j}))}catch(e){}}
+function dlgOpen(){const d=document.getElementById("dlg");return!!(d&&d.open)}
+function absorb(d){stashPre();try{mergeIn(JSON.parse(d.json))}catch(e){return false}SY.at=Math.max(Date.now(),(d.at||0)+1);putLocal(SY.at);putSy(d.at||0);SY.dirty=true;pubSoon();if(!dlgOpen()){render();rp()}return true}
+let BKT=0;function bkMaybe(){if(!window.__bk||Date.now()-BKT<9e5)return;BKT=Date.now();try{window.__bk.save(iso(mid(new Date())),JSON.stringify(S),SY.at)}catch(e){}}
 async function push(){if(SY.busy){SY.timer=setTimeout(push,500);return}if(!SY.dirty||!SY.ref)return;SY.busy=true;SY.dirty=false;
- try{await SY.ref.set({json:JSON.stringify(S),at:SY.at});setSt(SY.dirty?"syncing":"ok")}
+ try{const snap=await SY.ref.get(),d=snap.exists?snap.data():null;
+  if(d&&d.json&&(d.at||0)>getSy()&&(d.at||0)!=SY.at)absorb(d);SY.dirty=false;
+  const at=SY.at;await SY.ref.set({json:JSON.stringify(S),at});putSy(at);setSt(SY.dirty?"syncing":"ok");bkMaybe()}
  catch(e){SY.dirty=true;setSt("err",e&&e.code=="invalid_argument"?"Your access level cannot save to the cloud. Ask the owner to share it with you as Editor.":e&&e.code=="quota_exceeded"?"Cloud storage is full.":"Could not reach the cloud. Will retry on your next change.")}
  SY.busy=false;if(SY.dirty&&SY.st!="err")SY.timer=setTimeout(push,800)}
-async function initSync(ref){SY.ref=ref;const snap=await ref.get(),d=snap.exists?snap.data():null,la=getAt();
- if(d&&d.json&&(d.at||0)>la){try{S=norm(JSON.parse(d.json));SY.at=d.at;putLocal(d.at);render()}catch(e){}}
- else if(!d||(d.at||0)<la){SY.at=la||Date.now();SY.dirty=true;await push()}
+async function initSync(ref){SY.ref=ref;const snap=await ref.get(),d=snap.exists?snap.data():null,la=getAt(),base=getSy();
+ if(d&&d.json&&(d.at||0)>base){
+  if(la>base){absorb(d);await push()}
+  else{try{S=norm(JSON.parse(d.json));SY.at=d.at;putLocal(d.at);putSy(d.at);render()}catch(e){}}}
+ else if(la>base||!d){SY.at=la||Date.now();SY.dirty=true;await push()}
  else SY.at=la;
  if(SY.st!="err")setSt("ok");
- ref.onSnapshot(sn=>{if(!sn.exists||(sn.metadata&&sn.metadata.hasPendingWrites))return;const x=sn.data();if(!x||!x.json||(x.at||0)<=SY.at||document.getElementById("dlg").open)return;
-  try{S=norm(JSON.parse(x.json));SY.at=x.at;putLocal(x.at);render();rp();toast("Updated from another device")}catch(e){}},()=>{})}
-function wipeLocal(){S=norm({});try{localStorage.removeItem(K+".gs")}catch(e){}GS={};putLocal(0);SY.ref=null;SY.dirty=false;render()}
+ ref.onSnapshot(sn=>{if(!sn.exists||(sn.metadata&&sn.metadata.hasPendingWrites))return;const x=sn.data();if(!x||!x.json||(x.at||0)<=getSy()||(x.at||0)==SY.at||dlgOpen())return;
+  if(SY.dirty||SY.busy||getAt()>getSy()){if(absorb(x))push();return}
+  try{S=norm(JSON.parse(x.json));SY.at=x.at;putLocal(x.at);putSy(x.at);render();rp();toast("Updated from another device")}catch(e){}},()=>{})}
+function wipeLocal(){S=norm({});try{localStorage.removeItem(K+".gs");localStorage.removeItem(K+".pre");localStorage.removeItem(K+".pre2")}catch(e){}GS={};putLocal(0);putSy(0);SY.ref=null;SY.dirty=false;render()}
+/* recover missing data: merges a saved copy in, never removes anything */
+async function recoverOpen(){const opts=[];try{[["pre","This device, just before the last sync"],["pre2","This device, before an earlier sync"]].forEach(([k,l])=>{const o=JSON.parse(localStorage.getItem(K+"."+k)||"null");if(o&&o.json)opts.push({v:k,l:l+" ("+new Date(o.at).toLocaleString()+")"})})}catch(e){}
+ let cl=[];try{if(window.__bk)cl=await window.__bk.list()}catch(e){}cl.forEach(c=>opts.push({v:"d:"+c.day,l:"Cloud backup · "+fd(pd(c.day),{day:"numeric",month:"numeric",year:"numeric"})}));
+ if(!opts.length)return toast("No saved copies to recover from yet");
+ dlg(`<h2>Recover data</h2><p class="mut">Pick a saved copy. Anything in it that is missing now is added back. Nothing you have is removed or changed.</p><label>Saved copy</label><select name="c">${opts.map(o=>`<option value="${esc(o.v)}">${esc(o.l)}</option>`).join("")}</select>`,f=>{
+  const v=f.get("c");(async()=>{try{let j;if(v.startsWith("d:"))j=await window.__bk.get(v.slice(2));else j=JSON.parse(localStorage.getItem(K+"."+v)).json;
+   const c0=S.ses.length+S.tasks.length+S.subs.length+S.plans.length;mergeIn(JSON.parse(j));const c1=S.ses.length+S.tasks.length+S.subs.length+S.plans.length;save();render();toast(c1>c0?"Recovered "+(c1-c0)+" item"+(c1-c0==1?"":"s"):"Nothing was missing")}catch(e){toast("Could not read that copy")}})()},"Recover")}
 (async()=>{try{if(!(window.claude&&claude.use))return;const[db,user]=await Promise.all([claude.use("db"),claude.use("user")]);if(!db||!user)return;const id=await user.id();if(!id)return;await initSync(db.doc("data/users/"+id+"/state"))}catch(e){}})();
 function toast(m){const t=$("toast");t.textContent=m;t.hidden=false;clearTimeout(toast.k);toast.k=setTimeout(()=>t.hidden=true,2600)}
 function tpick(n,m){const h=Math.floor(m/60)%24,x=m%60;return `<div class="row tp"><select name="${n}h">${[...Array(12)].map((_,i)=>`<option value="${i+1}"${i+1==(h%12||12)?" selected":""}>${i+1}</option>`).join("")}</select>:<select name="${n}m">${[...Array(60)].map((_,i)=>`<option value="${i}"${i==x?" selected":""}>${pad(i)}</option>`).join("")}</select><select name="${n}p"><option${h<12?" selected":""}>AM</option><option${h>=12?" selected":""}>PM</option></select></div>`}
@@ -460,7 +478,7 @@ function sesPop(x){const c=CATS[x.cat]||CATS.study,s=sub(x.subj);POP={k:"s"};
 /* ---------- subjects and data ---------- */
 function subsView(){return `<div class="card"><h2>Subjects</h2>${S.subs.map(s=>`<div class="row" style="margin-bottom:8px"><b style="color:${s.color}">●</b> ${esc(s.name)} <span class="mut">${s.goal?s.goal+" min per week · ":""}semester ${s.sem}${s.year?" · "+esc(s.year):""}${s.exam?" · exam "+dmy(s.exam):""} · ${s.units.length} unit${s.units.length==1?"":"s"}, ${chAll(s).length} chapters</span><span class="sp"></span><button data-a="edsub" data-id="${s.id}">Edit</button></div>`).join("")||'<p class="mut">No subjects yet.</p>'}<button class="p" data-a="addsub">Add subject</button></div>
  <div class="card"><h2>Goals and profile</h2><div class="mut">Daily ${hm(S.goal.d)} · Weekly ${hm(S.goal.w)} · Pass mark ${S.pass}%${S.profile.name?" · Receipts show @"+esc(S.profile.name.replace(/^@/,"")):""}</div><button data-a="goal" style="margin-top:8px">Edit goals and profile</button></div>
- <div class="card"><h2>Data</h2><div class="row"><button data-a="bk">Backup and restore</button><button data-a="dl">Download backup file</button><button data-a="imp">Import backup file</button><button data-a="rst">Reset all</button></div>${window.__signOut?`<div class="row" style="margin-top:12px"><span class="mut">Signed in as ${esc(window.__acct||"")}</span><span class="sp"></span><button data-a="so">Sign out</button></div><div class="row" style="margin-top:8px"><span class="mut">App version ${VER}</span><span class="sp"></span><button data-a="refapp">Refresh app</button></div>`:""}<p class="mut" id="dnote2">Data is saved in this browser. When this page is opened signed in on claude.ai it is also kept in your private cloud copy, so it follows you across devices. Import adds a backup file to what you already have, without duplicates.</p></div>`}
+ <div class="card"><h2>Data</h2><div class="row"><button data-a="bk">Backup and restore</button><button data-a="dl">Download backup file</button><button data-a="imp">Import backup file</button><button data-a="rst">Reset all</button></div>${window.__signOut?`<div class="row" style="margin-top:12px"><span class="mut">Signed in as ${esc(window.__acct||"")}</span><span class="sp"></span><button data-a="so">Sign out</button></div><div class="row" style="margin-top:8px"><span class="mut">App version ${VER}</span><span class="sp"></span><button data-a="recov">Recover data</button><button data-a="refapp">Refresh app</button></div>`:""}<p class="mut" id="dnote2">Data is saved in this browser. When this page is opened signed in on claude.ai it is also kept in your private cloud copy, so it follows you across devices. Import adds a backup file to what you already have, without duplicates.</p></div>`}
 
 function render(){if(ensureRecur())save();const old=$("gs"),sc=old?old.scrollTop:null;
  document.querySelectorAll("[data-a=tab]").forEach(b=>b.classList.toggle("on",b.dataset.v==T));
@@ -469,7 +487,7 @@ function render(){if(ensureRecur())save();const old=$("gs"),sc=old?old.scrollTop
   $("lab").textContent=T=="day"?fd(A,{weekday:"long",day:"numeric",month:"long",year:"numeric"}):T=="week"?fd(r.s,{day:"numeric",month:"short"})+" – "+fd(r.e,{day:"numeric",month:"short",year:"numeric"}):fd(A,{month:"long",year:"numeric"})}
  $("main").innerHTML=T=="week"?planner(rng("week")):T=="day"?dayView():T=="plan"?planning():T=="syl"?syllabus():T=="fr"?friendsV():T=="gr"?groupsV():T=="sr"?srView():T=="stats"?stats():subsView();
  const g=$("gs");if(g)g.scrollTop=sc!=null?sc:Math.max(0,(Math.max(new Date().getHours(),8)-2)*H);
- $("streak").textContent="🔥 "+streakOf(S.ses);LV=lvl().L;document.querySelectorAll("[data-social]").forEach(b=>b.hidden=!window.__social);
+ $("streak").textContent="🔥 "+streakOf(S.ses);LV=lvl().L;if(typeof tabBadge=="function")tabBadge();document.querySelectorAll("[data-social]").forEach(b=>b.hidden=!window.__social);
  const cur=$("tsub").value;$("tsub").innerHTML=S.subs.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join("");if(cur)$("tsub").value=cur}
 function rp(){if($("pop").open&&POP&&POP.k=="c")coursePop(POP.id)}
 
@@ -556,8 +574,8 @@ function confetti(){if(matchMedia("(prefers-reduced-motion:reduce)").matches)ret
  const P=Array.from({length:160},()=>({x:c.width/2+(Math.random()-.5)*200,y:c.height*.35,vx:(Math.random()-.5)*14,vy:-Math.random()*13-3,w:6+Math.random()*6,h:4+Math.random()*6,r:Math.random()*6,vr:(Math.random()-.5)*.4,c:cols[Math.random()*cols.length|0]}));const t0=performance.now();
  (function f(t){const e=t-t0;g.clearRect(0,0,c.width,c.height);P.forEach(p=>{p.vy+=.35;p.x+=p.vx;p.y+=p.vy;p.vx*=.99;p.r+=p.vr;g.save();g.globalAlpha=Math.max(0,1-e/3200);g.translate(p.x,p.y);g.rotate(p.r);g.fillStyle=p.c;g.fillRect(-p.w/2,-p.h/2,p.w,p.h);g.restore()});if(e<3200)requestAnimationFrame(f);else c.remove()})(t0)}
 /* ---------- friends and groups (needs sign-in) ---------- */
-const VER="2026.11.10",NOTES=["Groups now have a dashboard view with stats, group goals and a leaderboard","Recurring tasks: set a repeat (daily, weekly, monthly) when adding a task","Dates now show as dd/mm/yyyy","You now get a pop-up whenever an app update is available","Group live sessions, now-studying and member of the week"];
-const SOC={me:null,fr:[],inc:[],out:[],gr:[],pm:{},off:0,loading:false,err:"",ok:false};let PT=0,GT=0,SK="",PR={on:false,t:0},GS={};
+const VER="2026.11.11",NOTES=["Safer sync: changes from two devices are now combined instead of one replacing the other, plus daily backups and a Recover data button","Change your username and invite people to a group by username","Groups now have a dashboard view with stats, group goals and a leaderboard","Recurring tasks: set a repeat (daily, weekly, monthly) when adding a task","Dates now show as dd/mm/yyyy","You now get a pop-up whenever an app update is available","Group live sessions, now-studying and member of the week"];
+const SOC={me:null,fr:[],inc:[],out:[],gr:[],inv:[],pm:{},off:0,loading:false,err:"",ok:false};let PT=0,GT=0,SK="",PR={on:false,t:0},GS={};
 try{GS=JSON.parse(localStorage.getItem(K+".gs")||"{}")}catch(e){}
 const saveGS=()=>{try{localStorage.setItem(K+".gs",JSON.stringify(GS))}catch(e){}};
 const nowS=()=>Date.now()+(SOC.off||0);
@@ -567,9 +585,10 @@ const isLive=(p,n)=>!!(p&&p.studying_since&&p.live_at&&n-Date.parse(p.live_at)<9
 function myStats(){const td=iso(mid(new Date())),ws=iso(monday(new Date()));let wk=0,today=0;S.ses.forEach(x=>{if(x.date==td)today+=x.min;if(x.date>=ws&&x.date<=td)wk+=x.min});const L=lvl();const mk=td.slice(0,7);let mo=0;S.ses.forEach(x=>{if(x.date.slice(0,7)==mk&&x.date<=td)mo+=x.min});return{wk,ws,today,day:td,mo,mk,streak:streakOf(S.ses),xp:L.xp,lvl:L.L}}
 function pubSoon(){clearTimeout(PT);PT=setTimeout(()=>{if(window.__publish)window.__publish(myStats())},3000)}
 function socLoad(q){if(!window.__social)return;if(!q){SOC.loading=true;if(T=="fr"||T=="gr")render()}
- window.__social.load().then(r=>{const old=SOC.gr.map(g=>g.id).join()+"|"+SOC.inc.length+"|"+SOC.fr.length+"|"+!!SOC.me;Object.assign(SOC,r,{err:"",ok:true});SOC.off=r.off||0;SOC.at=Date.now();SOC.pm={};[SOC.me].concat(SOC.fr).concat(...SOC.gr.map(g=>g.members)).forEach(p=>p&&(SOC.pm[p.user_id]=p));SOC.loading=false;
-  if(q)patchSoc(old!=SOC.gr.map(g=>g.id).join()+"|"+SOC.inc.length+"|"+SOC.fr.length+"|"+!!SOC.me);else if(T=="fr"||T=="gr")render()})
+ window.__social.load().then(r=>{const old=SOC.gr.map(g=>g.id).join()+"|"+SOC.inc.length+"|"+SOC.fr.length+"|"+SOC.inv.length+"|"+!!SOC.me;Object.assign(SOC,r,{err:"",ok:true});SOC.off=r.off||0;SOC.at=Date.now();SOC.pm={};[SOC.me].concat(SOC.fr).concat(...SOC.gr.map(g=>g.members)).forEach(p=>p&&(SOC.pm[p.user_id]=p));SOC.loading=false;
+  if(q){patchSoc(old!=SOC.gr.map(g=>g.id).join()+"|"+SOC.inc.length+"|"+SOC.fr.length+"|"+SOC.inv.length+"|"+!!SOC.me);tabBadge()}else if(T=="fr"||T=="gr")render()})
  .catch(e=>{SOC.loading=false;if(!q){SOC.err=(e&&e.message)||"Could not load. Check your connection.";if(T=="fr"||T=="gr")render()}})}
+function tabBadge(){const b=document.querySelector("[data-v=gr]");if(b){const t="Groups"+(SOC.inv.length?" ●"+SOC.inv.length:"");if(b.textContent!=t)b.textContent=t}}
 function selG(){return SOC.gr.find(g=>g.id==SOC.sel)||SOC.gr[0]}
 function patchSoc(full){if(T=="gr"){const g=selG();if(full||!g||!$("gl_"+g.id))return render();$("gl_"+g.id).innerHTML=gLive(g);$("gs_"+g.id).innerHTML=gSessHtml(g)}
  else if(T=="fr"){if(full||!$("fb"))return render();$("fb").innerHTML=frBoard()}}
@@ -585,7 +604,7 @@ function socGate(){if(!window.__social)return'<div class="card"><h2>Friends and 
  if(!SOC.me)return`<div class="card"><h2>Choose a username</h2><p class="mut">Friends find you by this name. Use 3 to 20 letters, numbers or underscores. Only your study time, streak and level are shared, and only with your friends and group members.</p><div class="row"><input id="un" placeholder="username" maxlength="20" style="min-width:200px"><button class="p" data-a="setun">Save</button></div></div>`;return""}
 function frBoard(){const me=SOC.me;return board([me].concat(SOC.fr),me.user_id)+(SOC.fr.length?"":'<p class="mut" style="margin-top:8px">No friends yet. Send a request using their username.</p>')}
 function friendsV(){const g=socGate();if(g)return g;const me=SOC.me;
- return`<div class="card"><div class="row"><h2 style="margin:0">Friends</h2><span class="sp"></span><span class="mut">You are @${esc(me.username)}</span><button data-a="socref">${SOC.loading?"…":"Refresh"}</button></div>
+ return`<div class="card"><div class="row"><h2 style="margin:0">Friends</h2><span class="sp"></span><span class="mut">You are @${esc(me.username)}</span><button data-a="chun">Change username</button><button data-a="socref">${SOC.loading?"…":"Refresh"}</button></div>
  <div class="row" style="margin-top:12px"><input id="fa" placeholder="Friend's username" style="min-width:200px"><button class="p" data-a="fadd">Send request</button></div></div>
  ${SOC.inc.length?`<div class="card"><h2>Requests</h2>${SOC.inc.map(r=>`<div class="row" style="margin-bottom:6px"><b>@${esc(r.username)}</b><span class="sp"></span><button class="p" data-a="facc" data-id="${r.id}">Accept</button><button data-a="fdel" data-id="${r.id}">Decline</button></div>`).join("")}</div>`:""}
  <div class="card"><h2>Leaderboard · this week</h2><div id="fb">${frBoard()}</div>
@@ -624,11 +643,13 @@ function gSessHtml(g){if(g.sessErr)return'<div class="mut">Live sessions need th
    ${j?`<span style="color:var(--ok)">✓ You're in</span><button data-a="gsl" data-id="${x.id}">Leave</button>`:p.k!="done"?`<button class="p" data-a="gsj" data-id="${x.id}">☆ Join</button>`:""}${x.host==me.user_id&&p.k!="done"?`<button data-a="gsx" data-id="${x.id}">Cancel</button>`:""}</div></div></div>`}).join("")}
 function groupsV(){const g=socGate();if(g)return g;const x=selG();SOC.sel=x&&x.id;const subO=S.subs.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join("")||'<option value="">(no subjects)</option>',d0=dtl(new Date(nowS()+10*6e4));
  return`<div class="card"><div class="row"><h2 style="margin:0">Groups</h2><span class="sp"></span><button data-a="socref">${SOC.loading?"…":"Refresh"}</button></div>
+ ${SOC.inv.length?`<div style="margin-top:10px;padding:10px 12px;border:1px solid var(--ac);border-radius:10px"><b>Group invites</b>${SOC.inv.map(i=>`<div class="row" style="margin-top:6px"><span>@${esc(i.inviter)} invited you to <b>${esc(i.group_name)}</b></span><span class="sp"></span><button class="p" data-a="ginva" data-id="${i.id}">Accept</button><button data-a="ginvd" data-id="${i.id}">Decline</button></div>`).join("")}</div>`:""}
  ${SOC.gr.length?`<div class="gchips" style="margin-top:10px">${SOC.gr.map(y=>`<button data-a="gsel" data-id="${y.id}" class="${x&&y.id==x.id?"on":""}">${esc(y.name)}</button>`).join("")}</div>`:""}
  <details${SOC.gr.length?"":" open"} style="margin-top:10px"><summary style="cursor:pointer;color:var(--ac)">+ Create or join a group</summary>
  <div class="row" style="margin-top:10px"><input id="gn" placeholder="New group name" style="min-width:180px"><button class="p" data-a="gnew">Create group</button></div>
  <div class="row" style="margin-top:8px"><input id="gc" placeholder="Join with code" style="min-width:180px;text-transform:uppercase"><button data-a="gjoin">Join</button></div></details></div>
  ${x?`<div class="card"><div class="row"><h1 style="margin:0;font-size:22px">${esc(x.name)}</h1><span class="mut">${x.members.length} member${x.members.length==1?"":"s"}</span><span class="sp"></span><span class="mut">Code</span><b>${esc(x.code)}</b><button class="ib" data-a="gcopy" data-v="${esc(x.code)}" style="width:auto;padding:3px 8px">Copy</button><button data-a="gleave" data-id="${x.id}">Leave</button></div>
+ <div class="row" style="margin-top:10px"><input id="gi_${x.id}" placeholder="Add a member by username" maxlength="20" style="min-width:200px"><button data-a="ginv" data-id="${x.id}">Send invite</button></div>
  <div id="gl_${x.id}">${gLive(x)}</div>
  <div class="row" style="margin:20px 0 4px"><h2 style="margin:0">🗓 Study sessions</h2><span class="sp"></span><button class="ib" data-a="sall" style="width:auto;padding:3px 8px">${SOC.sAll?"Upcoming only":"All sessions →"}</button></div><div id="gs_${x.id}">${gSessHtml(x)}</div>
  <details style="margin-top:10px"><summary style="cursor:pointer;color:var(--ac)">+ Schedule a group session</summary><div style="display:grid;gap:8px;margin-top:8px;max-width:420px">
@@ -730,6 +751,10 @@ document.addEventListener("click",e=>{const t=e.target.closest("[data-a]");if(!t
  else if(a=="gnew")socDo(()=>window.__social.createGroup($("gn").value),"Group created")
  else if(a=="gjoin")socDo(()=>window.__social.joinGroup($("gc").value),"Joined")
  else if(a=="gleave"){if(confirm("Leave this group?"))socDo(()=>window.__social.leaveGroup(id))}
+ else if(a=="chun"){dlg(`<h2>Change username</h2><p class="mut">3 to 20 letters, numbers or underscores. Friends will see the new name.</p><label>New username</label><input name="u" required maxlength="20" value="${esc(SOC.me&&SOC.me.username||"")}">`,f=>{socDo(()=>window.__social.changeUsername(f.get("u")),"Username changed")},"Save")}
+ else if(a=="ginv")socDo(()=>window.__social.inviteToGroup(id,$("gi_"+id).value),"Invite sent")
+ else if(a=="ginva")socDo(()=>window.__social.acceptInvite(+id),"Joined the group")
+ else if(a=="ginvd")socDo(()=>window.__social.declineInvite(+id))
  else if(a=="gsel"){SOC.sel=id;render()}
  else if(a=="lball"){SOC.lbAll=!SOC.lbAll;patchSoc(false)}
  else if(a=="sall"){SOC.sAll=!SOC.sAll;render()}
@@ -738,6 +763,7 @@ document.addEventListener("click",e=>{const t=e.target.closest("[data-a]");if(!t
  else if(a=="gsj")gsJoin(id)
  else if(a=="gsl"){delete GS[id];saveGS();socDo(()=>window.__social.leaveSession(id))}
  else if(a=="gsx"){if(confirm("Cancel this session for everyone?"))socDo(()=>window.__social.cancelSession(id))}
+ else if(a=="recov")recoverOpen()
  else if(a=="refapp"){if(window.__refreshApp)window.__refreshApp()}
  else if(a=="gcopy"){try{navigator.clipboard.writeText(t.dataset.v);toast("Code copied")}catch(e){toast("Code: "+t.dataset.v)}}
  else if(a=="socref")socLoad()

@@ -40,11 +40,11 @@ else{
 
  /* ---- friends and groups ---- */
  const E=e=>{throw new Error(e&&e.message&&/duplicate|unique/i.test(e.message)?"That username is taken.":(e&&e.message)||"Something went wrong")};
- window.__publish=async st=>{if(!user||!window.__socMe)return;await sb.from("profiles").update({mo:st.mo,mo_key:st.mk,wk:st.wk,wk_start:st.ws,today:st.today,day:st.day,streak:st.streak,xp:st.xp,lvl:st.lvl,updated_at:new Date().toISOString()}).eq("user_id",user.id)};
+ let lastPub="";window.__publish=async st=>{if(!user||!window.__socMe)return;const k=JSON.stringify(st);if(k===lastPub)return;lastPub=k;try{await sb.from("profiles").update({mo:st.mo,mo_key:st.mk,wk:st.wk,wk_start:st.ws,today:st.today,day:st.day,streak:st.streak,xp:st.xp,lvl:st.lvl,updated_at:new Date().toISOString()}).eq("user_id",user.id)}catch(e){lastPub=""}};
  window.__social={
   async load(){
    const me=(await sb.from("profiles").select("*").eq("user_id",user.id).maybeSingle()).data;window.__socMe=me;
-   if(!me)return{me:null,fr:[],inc:[],out:[],gr:[]};
+   if(!me)return{me:null,fr:[],inc:[],out:[],gr:[],inv:[]};
    window.__publish(myStats());
    const {data:rq,error:e1}=await sb.rpc("my_requests");if(e1)E(e1);
    const acc=(rq||[]).filter(r=>r.status=="accepted"),inc=(rq||[]).filter(r=>r.status=="pending"&&r.incoming),out=(rq||[]).filter(r=>r.status=="pending"&&!r.incoming);
@@ -58,7 +58,13 @@ else{
     sessions:ss.filter(x=>x.group_id==g.id&&!x.cancelled).map(x=>({id:x.id,title:x.title,start:Date.parse(x.start_at),rounds:x.rounds,focus:x.focus_min,brk:x.break_min,host:x.host,joined:sm.filter(m=>m.session_id==x.id).map(m=>m.user_id)}))}));
    if(!window.__socSub){window.__socSub=1;let tm;const ch=()=>{clearTimeout(tm);tm=setTimeout(()=>window.__socChange&&window.__socChange(),700)};
     ["profiles","group_sessions","session_members","group_members","friendships"].forEach(t=>{try{sb.channel("rt-"+t).on("postgres_changes",{event:"*",schema:"public",table:t},ch).subscribe()}catch(e){}})}
-   return{me,fr,inc,out,gr,off}},
+   let inv=[];try{const {data:iv}=await sb.rpc("my_group_invites");inv=iv||[]}catch(e){}
+   return{me,fr,inc,out,gr,inv,off}},
+  async changeUsername(n){n=(n||"").trim().toLowerCase();if(!/^[a-z0-9_]{3,20}$/.test(n))throw new Error("Use 3 to 20 letters, numbers or underscores.");
+   const {error}=await sb.from("profiles").update({username:n}).eq("user_id",user.id);if(error)E(error)},
+  async inviteToGroup(gid,u){if(!(u||"").trim())throw new Error("Type a username first.");const {error}=await sb.rpc("invite_to_group",{gid,uname:u});if(error)E(error)},
+  async acceptInvite(id){const {error}=await sb.rpc("accept_group_invite",{iid:id});if(error)E(error)},
+  async declineInvite(id){const {error}=await sb.rpc("decline_group_invite",{iid:id});if(error)E(error)},
   async setGoal(gid,t,h){const {error}=await sb.rpc("set_group_goal",{gid,gtitle:t,ghours:h});if(error)E(error)},
   async setLive(el){const {error}=await sb.rpc("set_live",{el});if(error)throw error},
   async createSession(o){const {data,error}=await sb.from("group_sessions").insert({group_id:o.gid,host:user.id,title:o.title,start_at:new Date(o.start).toISOString(),rounds:o.rounds,focus_min:o.focus,break_min:o.brk}).select("id").single();if(error)E(error);
@@ -74,6 +80,13 @@ else{
   async createGroup(n){if(!(n||"").trim())throw new Error("Type a group name first.");const {error}=await sb.rpc("create_group",{gname:n});if(error)E(error)},
   async joinGroup(c){if(!(c||"").trim())throw new Error("Type the group code first.");const {error}=await sb.rpc("join_group",{c});if(error)E(error)},
   async leaveGroup(gid){const {error}=await sb.from("group_members").delete().eq("group_id",gid).eq("user_id",user.id);if(error)E(error)}};
+
+ /* ---- daily cloud backups (kept 14 days) ---- */
+ window.__bk={
+  async save(day,json,at){if(!user)return;await sb.from("state_backups").upsert({user_id:user.id,day,json,at});
+   const old=new Date(Date.now()-14*864e5).toLocaleDateString("en-CA");await sb.from("state_backups").delete().eq("user_id",user.id).lt("day",old)},
+  async list(){const {data}=await sb.from("state_backups").select("day,at").eq("user_id",user.id).order("day",{ascending:false}).limit(14);return data||[]},
+  async get(day){const {data,error}=await sb.from("state_backups").select("json").eq("user_id",user.id).eq("day",day).maybeSingle();if(error||!data)throw new Error("missing");return data.json}};
  const onUser=u=>{user=u;$("aload").hidden=true;
   if(!u){window.__signOut=null;window.__socMe=null;window.__acct="";form.hidden=false;box.hidden=false;return}
   box.hidden=true;let last=null;try{last=localStorage.getItem("studytracker.uid")}catch(e){}
