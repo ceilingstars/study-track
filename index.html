@@ -95,6 +95,7 @@ label{display:block;font-size:13px;color:var(--mut);margin:8px 0 3px}
 .gdc{font-size:12px;font-weight:700;letter-spacing:.05em;color:var(--ac)}.gdtm{font-size:28px;font-weight:800;line-height:1.15;margin:4px 0}.gdtm span{font-size:12px;font-weight:600;margin-left:3px;color:var(--mut)}.gdu{font-size:12px;color:var(--mut)}
 .gdm{flex:1;min-width:0}.gdst{display:flex;gap:28px;flex-wrap:wrap}.gdst b{font-size:18px}.gdf{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:1px solid var(--bd)}.gdav{display:inline-flex}.gdav .av{margin-left:-6px;border:2px solid var(--hi)}.gdav .av:first-child{margin-left:0}
 @media(max-width:760px){.gds{flex-direction:column}.gdd{width:auto;align-self:stretch;display:flex;align-items:baseline;justify-content:center;gap:10px;flex-wrap:wrap}.gdtm{margin:0}}
+.sycard.dropb{box-shadow:0 -4px 0 0 var(--ac)}.sycard.dropa{box-shadow:0 4px 0 0 var(--ac)}.sycard{transition:transform .15s}
 #auth{position:fixed;inset:0;z-index:100;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:20px}
 #auth .box{width:100%;max-width:360px;background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:22px}
 #auth h1{margin-bottom:4px}#auth form{display:grid;gap:10px;margin-top:14px}#auth input{width:100%}
@@ -361,12 +362,12 @@ function unitF(sid,u){const s=S.subs.find(z=>z.id==sid);if(!s)return;
  dlg(`<h2>${u?"Edit":"Add"} unit · ${esc(s.name)}</h2><label>Unit name</label><input name="t" required value="${u?esc(u.t):""}">${u?`<label><input type="checkbox" name="x"> Delete this unit and its chapters</label>`:`<label>Chapters (one per line, optional)</label><textarea name="c" rows="6" style="width:100%"></textarea>`}`,f=>{
   if(u){if(f.get("x")){s.units=s.units.filter(z=>z!=u);return}u.t=f.get("t");return}s.units.push({id:rid("u"),t:f.get("t"),ch:lines(f.get("c"))})})}
 function chapF(sid,uid){const[s,u]=findU(sid,uid);if(!u)return;dlg(`<h2>Add chapters · ${esc(u.t)}</h2><label>One per line</label><textarea name="c" rows="7" style="width:100%" required></textarea>`,f=>{u.ch.push(...lines(f.get("c")))},"Add")}
-let SYC=new Set();
+let SYO=new Set();
 function syllabus(){if(!S.subs.length)return '<div class="card"><h2>Syllabus planner</h2><p class="mut">Add a subject first under Subjects and data. Then build its syllabus here with units and chapters.</p></div>';
  const all=S.subs.flatMap(chAll),dn=all.filter(c=>c.d).length,nu=S.subs.reduce((t,s)=>t+s.units.length,0);
  return `<div class="stats"><div class="card"><div class="mut">Subjects</div><div class="n">${S.subs.length}</div></div><div class="card"><div class="mut">Units</div><div class="n">${nu}</div></div><div class="card"><div class="mut">Chapters done</div><div class="n">${dn} / ${all.length}</div></div><div class="card"><div class="mut">Syllabus covered</div><div class="n">${pctOf(dn,all.length)}%</div></div></div>`+
- S.subs.map(s=>{const t=chAll(s).length,d=chDone(s),op=!SYC.has(s.id);
-  return `<div class="card"><div class="row" data-a="syt" data-s="${s.id}" style="cursor:pointer"><span>${op?"▾":"▸"}</span><b style="color:${s.color}">●</b><b style="font-size:16px">${esc(s.name)}</b><span class="mut">${t?`${d}/${t} chapters · ${pctOf(d,t)}%`:"No chapters yet"}${s.exam?" · exam "+dmy(s.exam):""}</span><span class="sp"></span><button data-a="addunit" data-s="${s.id}">+ Unit</button></div>${t?`<div class="pbar" style="margin-top:8px"><i style="width:${pctOf(d,t)}%;background:${s.color}"></i></div>`:""}${op?`<div style="margin-top:8px">${unitsHtml(s)}</div>`:""}</div>`}).join("")}
+ S.subs.map(s=>{const t=chAll(s).length,d=chDone(s),op=SYO.has(s.id);
+  return `<div class="card sycard" data-sid="${s.id}"><div class="row" data-a="syt" data-s="${s.id}" style="cursor:pointer"><span class="mut" data-grip title="Drag to reorder" style="cursor:grab;letter-spacing:-2px;padding:0 2px">⋮⋮</span><b title="${op?"Close":"Open"}" style="font-size:18px;width:20px;text-align:center">${op?"⌃":"⌄"}</b><b style="color:${s.color}">●</b><b style="font-size:16px">${esc(s.name)}</b><span class="mut">${t?`${d}/${t} chapters · ${pctOf(d,t)}%`:"No chapters yet"}${s.exam?" · exam "+dmy(s.exam):""}</span><span class="sp"></span><button data-a="addunit" data-s="${s.id}">+ Unit</button></div>${t?`<div class="pbar" style="margin-top:8px"><i style="width:${pctOf(d,t)}%;background:${s.color}"></i></div>`:""}${op?`<div style="margin-top:8px">${unitsHtml(s)}</div>`:""}</div>`}).join("")}
 
 /* ---------- progress / exam prep ---------- */
 function stPro(){let h=`<div class="card"><h2>Course progress</h2><div class="mut">Hours are all recorded study time. Completion comes from the chapters you tick off in Syllabus.</div>`;
@@ -574,7 +575,7 @@ function confetti(){if(matchMedia("(prefers-reduced-motion:reduce)").matches)ret
  const P=Array.from({length:160},()=>({x:c.width/2+(Math.random()-.5)*200,y:c.height*.35,vx:(Math.random()-.5)*14,vy:-Math.random()*13-3,w:6+Math.random()*6,h:4+Math.random()*6,r:Math.random()*6,vr:(Math.random()-.5)*.4,c:cols[Math.random()*cols.length|0]}));const t0=performance.now();
  (function f(t){const e=t-t0;g.clearRect(0,0,c.width,c.height);P.forEach(p=>{p.vy+=.35;p.x+=p.vx;p.y+=p.vy;p.vx*=.99;p.r+=p.vr;g.save();g.globalAlpha=Math.max(0,1-e/3200);g.translate(p.x,p.y);g.rotate(p.r);g.fillStyle=p.c;g.fillRect(-p.w/2,-p.h/2,p.w,p.h);g.restore()});if(e<3200)requestAnimationFrame(f);else c.remove()})(t0)}
 /* ---------- friends and groups (needs sign-in) ---------- */
-const VER="2026.11.11",NOTES=["Safer sync: changes from two devices are now combined instead of one replacing the other, plus daily backups and a Recover data button","Change your username and invite people to a group by username","Groups now have a dashboard view with stats, group goals and a leaderboard","Recurring tasks: set a repeat (daily, weekly, monthly) when adding a task","Dates now show as dd/mm/yyyy","You now get a pop-up whenever an app update is available","Group live sessions, now-studying and member of the week"];
+const VER="2026.11.13",NOTES=["Syllabus: subjects start closed, hold and drag to reorder them, and ticking a chapter adds it to Revision automatically","Safer sync: changes from two devices are now combined instead of one replacing the other, plus daily backups and a Recover data button","Change your username and invite people to a group by username","Groups now have a dashboard view with stats, group goals and a leaderboard","Recurring tasks: set a repeat (daily, weekly, monthly) when adding a task","Dates now show as dd/mm/yyyy","You now get a pop-up whenever an app update is available","Group live sessions, now-studying and member of the week"];
 const SOC={me:null,fr:[],inc:[],out:[],gr:[],inv:[],pm:{},off:0,loading:false,err:"",ok:false};let PT=0,GT=0,SK="",PR={on:false,t:0},GS={};
 try{GS=JSON.parse(localStorage.getItem(K+".gs")||"{}")}catch(e){}
 const saveGS=()=>{try{localStorage.setItem(K+".gs",JSON.stringify(GS))}catch(e){}};
@@ -684,6 +685,29 @@ function gTick(){if(!window.__social||!SOC.ok)return;const n=nowS();
  {const sc=Math.floor((Date.now()-(SOC.at||Date.now()))/1e3),tx=sc<10?"Updated just now":sc<60?"Updated "+sc+"s ago":"Updated "+Math.floor(sc/60)+"m ago";document.querySelectorAll("[data-upd]").forEach(e=>{if(e.textContent!=tx)e.textContent=tx})}
  gAuto(n);gPres(n);if(++GT%20==0&&document.visibilityState=="visible"&&(T=="fr"||T=="gr"||GT%60==0))socLoad(true)}
 setInterval(gTick,1000);
+/* ---------- hold and drag to reorder subjects (Syllabus tab) ---------- */
+(function(){let st=null,noClick=0;const LP=380;
+ const cards=()=>[...document.querySelectorAll(".sycard")];
+ function begin(){const c=st.card,r=c.getBoundingClientRect();st.on=true;st.top=r.top+scrollY;st.h=r.height;st.oy=st.y+scrollY;st.idx=cards().indexOf(c);
+  c.style.position="relative";c.style.zIndex=50;c.style.transition="none";c.style.opacity=".95";c.style.boxShadow="0 10px 28px rgba(0,0,0,.4)";document.body.style.userSelect="none";if(navigator.vibrate)try{navigator.vibrate(15)}catch(e){}
+  (function loop(){if(!st||!st.on)return;if(st.y<90)scrollBy(0,-14);else if(st.y>innerHeight-90)scrollBy(0,14);place();requestAnimationFrame(loop)})()}
+ function place(){const c=st.card,py=st.y+scrollY,dy=py-st.oy;c.style.transform="translateY("+dy+"px) scale(1.01)";const mid=st.top+dy+st.h/2,others=cards().filter(x=>x!=c);let i=0;
+  others.forEach(o=>{o.classList.remove("dropb","dropa");const r=o.getBoundingClientRect(),oc=r.top+scrollY+r.height/2;if(oc<mid)i++});st.idx=i;
+  if(others[i])others[i].classList.add("dropb");else if(others.length)others[others.length-1].classList.add("dropa")}
+ function end(){if(!st)return;const s=st;st=null;clearTimeout(s.tm);if(!s.on)return;noClick=Date.now();document.body.style.userSelect="";
+  const ids=cards().filter(x=>x!=s.card).map(x=>x.dataset.sid);ids.splice(s.idx,0,s.card.dataset.sid);
+  const by=Object.fromEntries(S.subs.map(x=>[x.id,x])),ord=ids.map(i=>by[i]).filter(Boolean);S.subs.forEach(x=>{if(!ord.includes(x))ord.push(x)});
+  const ch=ord.some((x,i)=>x!=S.subs[i]);if(ch){S.subs=ord;save()}render()}
+ function down(e,x,y,immediate){const tg=e.target;if(T!="syl"||!tg.closest)return;const row=tg.closest(".sycard>.row");if(!row)return;if(tg.closest("button")&&!tg.closest("[data-grip]"))return;
+  st={card:row.parentNode,x,y,on:false};if(immediate||tg.closest("[data-grip]")){begin()}else st.tm=setTimeout(()=>{if(st&&!st.on)begin()},LP)}
+ document.addEventListener("mousedown",e=>{if(e.button)return;down(e,e.clientX,e.clientY);if(st){st.x0=e.clientX;st.y0=e.clientY}});
+ document.addEventListener("mousemove",e=>{if(!st)return;st.y=e.clientY;if(!st.on&&(Math.abs(e.clientX-st.x0)>8||Math.abs(e.clientY-st.y0)>8)){clearTimeout(st.tm);st=null;return}if(st.on){e.preventDefault();place()}});
+ document.addEventListener("mouseup",end);
+ document.addEventListener("touchstart",e=>{const t=e.touches[0];down(e,t.clientX,t.clientY);if(st){st.x0=t.clientX;st.y0=t.clientY}},{passive:true});
+ document.addEventListener("touchmove",e=>{if(!st)return;const t=e.touches[0];st.y=t.clientY;if(st.on){e.preventDefault();return}if(Math.abs(t.clientX-st.x0)>10||Math.abs(t.clientY-st.y0)>10){clearTimeout(st.tm);st=null}},{passive:false});
+ document.addEventListener("touchend",end);document.addEventListener("touchcancel",end);
+ document.addEventListener("contextmenu",e=>{if(st&&st.on)e.preventDefault()});
+ document.addEventListener("click",e=>{if(Date.now()-noClick<300){e.stopPropagation();e.preventDefault()}},true)})();
 document.addEventListener("click",e=>{const t=e.target.closest("[data-a]");if(!t)return;const a=t.dataset.a,v=t.dataset.v,id=t.dataset.id,now=new Date();
  if(a=="tab"){T=v;render();if(v=="fr"||v=="gr")socLoad()}
  else if(a=="st"){ST=v;render()}
@@ -718,11 +742,14 @@ document.addEventListener("click",e=>{const t=e.target.closest("[data-a]");if(!t
  else if(a=="tdone"){const k=S.tasks.find(x=>x.id==id);if(k){k.done=!k.done;save();render();rp();if(k.done){const dt=S.tasks.filter(z=>z.date==k.date);if(dt.length&&dt.every(z=>z.done)){confetti();toast("All tasks done for the day 🎉")}}}}
  else if(a=="tstudy"){const k=S.tasks.find(x=>x.id==id);if(k){if($("pop").open)$("pop").close();if(!TM.el){if(k.subj&&S.subs.some(z=>z.id==k.subj))$("tsub").value=k.subj;$("tnote").value=k.t}$("tv").hidden=false;tdraw()}}
  else if(a=="course")coursePop(id)
- else if(a=="syt"){const k=t.dataset.s;if(SYC.has(k))SYC.delete(k);else SYC.add(k);render()}
- else if(a=="addunit")unitF(t.dataset.s)
+ else if(a=="syt"){const k=t.dataset.s;if(SYO.has(k))SYO.delete(k);else SYO.add(k);render()}
+ else if(a=="addunit"){SYO.add(t.dataset.s);unitF(t.dataset.s)}
  else if(a=="ued"){const[,u]=findU(t.dataset.s,t.dataset.u);if(u)unitF(t.dataset.s,u)}
  else if(a=="uadd")chapF(t.dataset.s,t.dataset.u)
- else if(a=="ctog"){const[,u]=findU(t.dataset.s,t.dataset.u),c=u&&u.ch.find(z=>z.id==t.dataset.c);if(c){c.d=!c.d;save();render();rp()}}
+ else if(a=="ctog"){const[sb,u]=findU(t.dataset.s,t.dataset.u),c=u&&u.ch.find(z=>z.id==t.dataset.c);if(c){c.d=!c.d;
+  if(c.d){const nm=x=>(x||"").trim().toLowerCase();if(!S.sr.items.some(x=>x.cid==c.id||(nm(x.subj)==nm(sb.name)&&nm(x.topic)==nm(c.t)))){S.sr.items.push({id:rid("r"),cid:c.id,auto:1,date:iso(mid(new Date())),subj:sb.name,unit:u.t,topic:c.t,mat:"",done:Array(6).fill(false)});toast("Added to your revision schedule")}}
+  else S.sr.items=S.sr.items.filter(x=>!(x.cid==c.id&&x.auto&&!(x.done||[]).some(Boolean)));
+  save();render();rp()}}
  else if(a=="cdel"){const[,u]=findU(t.dataset.s,t.dataset.u);if(u){u.ch=u.ch.filter(z=>z.id!=t.dataset.c);save();render();rp()}}
  else if(a=="cadd"){const[,u]=findU(t.dataset.s,t.dataset.u),i=$("ci_"+t.dataset.u),x=i?i.value.trim():"";if(u&&x){u.ch.push({id:rid("c"),t:x,d:false});save();render();rp()}}
  else if(a=="chsr"){const[s,u]=findU(t.dataset.s,t.dataset.u),c=u&&u.ch.find(z=>z.id==t.dataset.c);if(c){T="sr";render();srF({date:iso(mid(now)),subj:s.name,unit:u.t,topic:c.t,mat:""})}}
