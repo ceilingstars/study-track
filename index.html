@@ -249,6 +249,7 @@ function dayView(){const k=iso(A),ms=monday(A),
  tk=S.tasks.filter(x=>x.date==k).sort((a,b)=>(a.done?1:0)-(b.done?1:0)),pl=S.plans.filter(x=>x.date==k),ss=S.ses.filter(x=>x.date==k),open=tk.filter(x=>!x.done).length;
  return `<div class="strip">${strip}</div><div class="dg"><div>
  <div class="card"><h2 style="font-size:18px">${fd(A,{weekday:"long",day:"numeric",month:"long",year:"numeric"})}</h2>
+  <div class="row" style="margin:6px 0"><button data-a="drcpt" data-d="${k}">🧾 Daily receipt</button></div>
   <label>Planning</label><input id="dnote" style="width:100%" placeholder="Focus for this day…" value="${esc(S.notes[k]||"")}">
   <div class="row" style="margin-top:14px"><span class="mut">Tasks · ${tk.length-open}/${tk.length} completed (${open} remaining)</span><span class="sp"></span><button data-a="addtask">+ Add task</button></div>
   ${tk.map(taskRow).join("")||'<p class="mut">No tasks for this day.</p>'}</div>
@@ -354,20 +355,22 @@ function stCon(){const l=fses(),bd=byDate(l),beg=iso(ad(A,-364)),end=iso(A),yd=O
 const chAll=s=>s.units.flatMap(u=>u.ch),chDone=s=>chAll(s).filter(c=>c.d).length,pctOf=(a,b)=>b?Math.round(a/b*100):0;
 const lines=t=>String(t||"").split("\n").map(x=>x.trim()).filter(Boolean).map(x=>({id:rid("c"),t:x,d:false}));
 const findU=(sid,uid)=>{const s=S.subs.find(z=>z.id==sid);return[s,s&&s.units.find(u=>u.id==uid)]};
-function unitsHtml(s){return s.units.map(u=>{const d=u.ch.filter(c=>c.d).length,a=`data-s="${s.id}" data-u="${u.id}"`;
- return `<div class="un"><div class="row"><b>${esc(u.t)}</b><span class="mut">${d}/${u.ch.length}</span><span class="sp"></span><button class="ib" data-a="uadd" ${a} title="Add several chapters">＋</button><button class="ib" data-a="ued" ${a} title="Rename or delete unit">⋯</button></div><div class="pb" style="margin:4px 0 8px"><i style="width:${pctOf(d,u.ch.length)}%;background:${s.color}"></i></div>
- ${u.ch.map(c=>`<div class="row" style="margin-bottom:5px"><input type="checkbox" data-a="ctog" ${a} data-c="${c.id}"${c.d?" checked":""}><span class="sp"${c.d?' style="text-decoration:line-through;opacity:.6"':""}>${esc(c.t)}</span><button class="ib" data-a="chstudy" ${a} data-c="${c.id}" title="Study this chapter now" style="font-size:12px;width:auto;padding:3px 8px">▶ Study now</button><button class="ib" data-a="chsr" ${a} data-c="${c.id}" title="Add to revision schedule">↻</button><button class="ib" data-a="cdel" ${a} data-c="${c.id}" title="Remove chapter">✕</button></div>`).join("")}
- <div class="row"><input id="ci_${u.id}" class="sp" placeholder="Add a chapter" ${a}><button data-a="cadd" ${a}>Add</button></div></div>`}).join("")||'<p class="mut">No units yet. Add a unit to start the syllabus.</p>'}
+const UCOL=["#ef4444","#f97316","#eab308","#22c55e","#14b8a6","#3b82f6","#8b5cf6","#ec4899","#06b6d4","#84cc16"];
+const ucol=id=>{let h=0;for(const c of String(id))h=(h*31+c.charCodeAt(0))>>>0;return UCOL[h%UCOL.length]};
+let SYU=new Set();
+function unitsHtml(s){return s.units.map(u=>{const d=u.ch.filter(c=>c.d).length,a=`data-s="${s.id}" data-u="${u.id}"`,op=SYU.has(u.id);
+ return `<div class="un"><div class="row" data-a="unt" data-u="${u.id}" style="cursor:pointer"><span>${op?"▾":"▸"}</span><b style="color:${ucol(u.id)}">●</b><b>${esc(u.t)}</b><span class="mut">${d}/${u.ch.length}</span><span class="sp"></span><button class="ib" data-a="uadd" ${a} title="Add several chapters">＋</button><button class="ib" data-a="ued" ${a} title="Rename or delete unit">⋯</button></div><div class="pb" style="margin:4px 0 ${op?8:0}px"><i style="width:${pctOf(d,u.ch.length)}%;background:${ucol(u.id)}"></i></div>
+ ${op?u.ch.map(c=>`<div class="row" style="margin-bottom:5px"><input type="checkbox" data-a="ctog" ${a} data-c="${c.id}"${c.d?" checked":""}><span class="sp"${c.d?' style="text-decoration:line-through;opacity:.6"':""}>${esc(c.t)}</span><button class="ib" data-a="chstudy" ${a} data-c="${c.id}" title="Study this chapter now" style="font-size:12px;width:auto;padding:3px 8px">▶ Study now</button><button class="ib" data-a="chsr" ${a} data-c="${c.id}" title="Add to revision schedule">↻</button><button class="ib" data-a="cdel" ${a} data-c="${c.id}" title="Remove chapter">✕</button></div>`).join("")+`<div class="row"><input id="ci_${u.id}" class="sp" placeholder="Add a chapter" ${a}><button data-a="cadd" ${a}>Add</button></div>`:""}</div>`}).join("")||'<p class="mut">No units yet. Add a unit to start the syllabus.</p>'}
 function unitF(sid,u){const s=S.subs.find(z=>z.id==sid);if(!s)return;
  dlg(`<h2>${u?"Edit":"Add"} unit · ${esc(s.name)}</h2><label>Unit name</label><input name="t" required value="${u?esc(u.t):""}">${u?`<label><input type="checkbox" name="x"> Delete this unit and its chapters</label>`:`<label>Chapters (one per line, optional)</label><textarea name="c" rows="6" style="width:100%"></textarea>`}`,f=>{
-  if(u){if(f.get("x")){s.units=s.units.filter(z=>z!=u);return}u.t=f.get("t");return}s.units.push({id:rid("u"),t:f.get("t"),ch:lines(f.get("c"))})})}
+  if(u){if(f.get("x")){s.units=s.units.filter(z=>z!=u);return}u.t=f.get("t");return}{const nu={id:rid("u"),t:f.get("t"),ch:lines(f.get("c"))};SYU.add(nu.id);s.units.push(nu)}})}
 function chapF(sid,uid){const[s,u]=findU(sid,uid);if(!u)return;dlg(`<h2>Add chapters · ${esc(u.t)}</h2><label>One per line</label><textarea name="c" rows="7" style="width:100%" required></textarea>`,f=>{u.ch.push(...lines(f.get("c")))},"Add")}
 let SYO=new Set();
 function syllabus(){if(!S.subs.length)return '<div class="card"><h2>Syllabus planner</h2><p class="mut">Add a subject first under Subjects and data. Then build its syllabus here with units and chapters.</p></div>';
  const all=S.subs.flatMap(chAll),dn=all.filter(c=>c.d).length,nu=S.subs.reduce((t,s)=>t+s.units.length,0);
  return `<div class="stats"><div class="card"><div class="mut">Subjects</div><div class="n">${S.subs.length}</div></div><div class="card"><div class="mut">Units</div><div class="n">${nu}</div></div><div class="card"><div class="mut">Chapters done</div><div class="n">${dn} / ${all.length}</div></div><div class="card"><div class="mut">Syllabus covered</div><div class="n">${pctOf(dn,all.length)}%</div></div></div>`+
  S.subs.map(s=>{const t=chAll(s).length,d=chDone(s),op=SYO.has(s.id);
-  return `<div class="card sycard" data-sid="${s.id}"><div class="row" data-a="syt" data-s="${s.id}" style="cursor:pointer"><span class="mut" data-grip title="Drag to reorder" style="cursor:grab;letter-spacing:-2px;padding:0 2px">⋮⋮</span><b title="${op?"Close":"Open"}" style="font-size:18px;width:20px;text-align:center">${op?"⌃":"⌄"}</b><b style="color:${s.color}">●</b><b style="font-size:16px">${esc(s.name)}</b><span class="mut">${t?`${d}/${t} chapters · ${pctOf(d,t)}%`:"No chapters yet"}${s.exam?" · exam "+dmy(s.exam):""}</span><span class="sp"></span><button data-a="addunit" data-s="${s.id}">+ Unit</button></div>${t?`<div class="pbar" style="margin-top:8px"><i style="width:${pctOf(d,t)}%;background:${s.color}"></i></div>`:""}${op?`<div style="margin-top:8px">${unitsHtml(s)}</div>`:""}</div>`}).join("")}
+  return `<div class="card sycard" data-sid="${s.id}"><div class="row" data-a="syt" data-s="${s.id}" style="cursor:pointer"><span class="mut" data-grip title="Drag to reorder" style="cursor:grab;letter-spacing:-2px;padding:0 2px">⋮⋮</span><span>${op?"▾":"▸"}</span><b style="color:${s.color}">●</b><b style="font-size:16px">${esc(s.name)}</b><span class="mut">${t?`${d}/${t} chapters · ${pctOf(d,t)}%`:"No chapters yet"}${s.exam?" · exam "+dmy(s.exam):""}</span><span class="sp"></span><button data-a="addunit" data-s="${s.id}">+ Unit</button></div>${t?`<div class="pbar" style="margin-top:8px"><i style="width:${pctOf(d,t)}%;background:${s.color}"></i></div>`:""}${op?`<div style="margin-top:8px">${unitsHtml(s)}</div>`:""}</div>`}).join("")}
 
 /* ---------- progress / exam prep ---------- */
 function stPro(){let h=`<div class="card"><h2>Course progress</h2><div class="mut">Hours are all recorded study time. Completion comes from the chapters you tick off in Syllabus.</div>`;
@@ -459,15 +462,53 @@ function rcDraw(cv){const W=360,HH=640,SC=3;cv.width=W*SC;cv.height=HH*SC;const 
  for(let i=0;i<n;i++){g.lineTo(X0+(i+.5)*t,PY);g.lineTo(X0+(i+1)*t,PY+4)}g.lineTo(X0+PW,PY+th-4);for(let i=n;i>0;i--){g.lineTo(X0+(i-.5)*t,PY+th);g.lineTo(X0+(i-1)*t,PY+th-4)}g.closePath();g.fill();g.restore();
  g.save();g.translate(X0+IN,PY+6);body(true);g.restore()}
 const rcBlob=()=>new Promise(r=>$("rcv").toBlob(r,"image/png"));
-function receipt(){POP={k:"r"};const cur=RW>=monday(new Date());
+function receipt(){RCN="";POP={k:"r"};const cur=RW>=monday(new Date());
  $("pc").innerHTML=`<div class="ph"><div class="pt" style="flex:1">Share your receipt</div><button class="ib" data-a="pclose">✕</button></div><div class="row" style="justify-content:center;margin:12px 0 10px"><button class="ib" data-a="rwp">‹</button><b>${fd(RW,{month:"short",day:"numeric"})} - ${fd(ad(RW,6),{month:"short",day:"numeric"})}</b><button class="ib" data-a="rwn"${cur?" disabled":""}>›</button></div><div class="rcw"><canvas id="rcv"></canvas></div><div class="row" style="margin-top:12px"><button class="p sp" data-a="rshare" style="padding:10px">Share</button><button data-a="rsave" style="padding:10px">Save image</button></div>`;
  if(!$("pop").open)$("pop").showModal();rcDraw($("rcv"))}
-async function rcSave(){const b=await rcBlob(),nm="study-receipt-"+iso(RW)+".png";
+let RCN="";
+async function rcSave(){const b=await rcBlob(),nm=(RCN||"study-receipt-"+iso(RW))+".png";
  try{if(window.claude&&claude.use){const d=await claude.use("downloads");if(d){await d.save({filename:nm,data:b});toast("Saved");return}}}catch(e){if(e&&e.code=="declined")return}
  blobDl(nm,b)}
 async function rcShare(){const b=await rcBlob(),f=new File([b],"study-receipt.png",{type:"image/png"});
- if(navigator.canShare&&navigator.canShare({files:[f]})){try{await navigator.share({files:[f],title:"Weekly study receipt"});return}catch(e){if(e&&e.name=="AbortError")return}}
+ if(navigator.canShare&&navigator.canShare({files:[f]})){try{await navigator.share({files:[f],title:RCN?"Daily study receipt":"Weekly study receipt"});return}catch(e){if(e&&e.name=="AbortError")return}}
  try{await navigator.clipboard.write([new ClipboardItem({"image/png":b})]);toast("Receipt image copied. Paste it into your chat.")}catch(e){rcSave()}}
+/* ---------- daily study receipt ---------- */
+function rcDayDraw(cv,dk){const W=360,HH=640,SC=3;cv.width=W*SC;cv.height=HH*SC;const g=cv.getContext("2d");g.setTransform(SC,0,0,SC,0,0);
+ const d0=pd(dk),l=S.ses.filter(x=>x.date==dk),cats=Object.keys(CATS),tot=sum(l),rows=cats.map(c=>[c,sum(l.filter(x=>x.cat==c))]).filter(r=>r[1]>0),
+ sb={};l.forEach(x=>{const q=sub(x.subj);(sb[x.subj]=sb[x.subj]||{n:q.name,c:q.color,m:0}).m+=x.min});const subs=Object.values(sb).sort((a,b)=>b.m-a.m).slice(0,4),
+ tk=S.tasks.filter(x=>x.date==dk),td=tk.filter(x=>x.done).length,lg=l.reduce((m,x)=>Math.max(m,x.min),0),timed=l.filter(x=>x.st!=null),
+ first=timed.length?Math.min(...timed.map(x=>x.st)):null,last=timed.length?Math.max(...timed.map(x=>x.st+x.min)):null,hrs=Array(24).fill(0);
+ timed.forEach(x=>{let a=x.st,e=Math.min(x.st+x.min,1440);while(a<e){const h=Math.floor(a/60),n=Math.min(e,(h+1)*60);hrs[h]+=n-a;a=n}});
+ const yt=sum(S.ses.filter(x=>x.date==iso(ad(d0,-1)))),df=tot-yt,gd=S.goal.d,stk=streakAt(d0),L=lvl(),
+ mono='ui-monospace,"SF Mono",Menlo,Consolas,"Courier New",monospace',PW=270,X0=45,IN=16,CW=PW-IN*2,ink="#1f2430",mut="#7a7468",navy="#27407a";
+ const body=dr=>{let y=0;const T=(t,x,yy,sz,col,al,wt)=>{if(!dr)return;g.font=(wt||"400")+" "+sz+"px "+mono;g.fillStyle=col;g.textAlign=al||"left";g.textBaseline="alphabetic";g.fillText(t,x,yy)},
+  LN=(yy,dash)=>{if(!dr)return;g.strokeStyle="#cfc9bb";g.lineWidth=.8;g.setLineDash(dash?[2,2]:[]);g.beginPath();g.moveTo(0,yy);g.lineTo(CW,yy);g.stroke();g.setLineDash([])},
+  SP=(t,x,yy,sz,col,al,wt,ls)=>{if(dr&&"letterSpacing" in g)g.letterSpacing=ls+"px";T(t,x,yy,sz,col,al,wt);if(dr&&"letterSpacing" in g)g.letterSpacing="0px"},
+  KV=(k,v)=>{SP(k,0,y,8.5,mut,"left","400",.6);T(v,CW,y,9,ink,"right","700");y+=15},cut=(t,n)=>t.length>n?t.slice(0,n-1)+"…":t;
+  y+=8;SP("DAILY STUDY RECEIPT",CW/2,y+10,11.5,ink,"center","700",1.5);y+=26;T(fd(d0,{weekday:"long",day:"numeric",month:"short",year:"numeric"}),CW/2,y,9,mut,"center");y+=12;LN(y,true);y+=18;
+  if(rows.length)rows.forEach(r=>{if(dr){g.fillStyle=CATS[r[0]].c;g.beginPath();g.arc(4,y-3.5,3,0,7);g.fill()}SP(CATS[r[0]].n.toUpperCase(),13,y,10.5,ink,"left","400",.6);T(hm(r[1]),CW,y,10.5,ink,"right","700");y+=20});
+  else{T("No study logged today",CW/2,y,10,mut,"center");y+=20}
+  if(subs.length){y+=2;SP("BY SUBJECT",0,y,8,mut,"left","700",1);y+=14;subs.forEach(q=>{if(dr){g.fillStyle=q.c;g.beginPath();g.arc(4,y-3,3,0,7);g.fill()}T(cut(q.n,20),13,y,9,ink,"left");T(hm(q.m),CW,y,9,ink,"right","700");y+=15})}
+  if(timed.length){y+=8;const BH=34,bw=CW/24,mx=Math.max(...hrs,1);if(dr){hrs.forEach((m,i)=>{if(m){const h=Math.max(1.5,m/mx*BH);g.fillStyle=CATS.study.c;g.fillRect(i*bw+1,y+BH-h,bw-2,h)}});g.strokeStyle="#9b9588";g.lineWidth=.8;g.beginPath();g.moveTo(0,y+BH+.5);g.lineTo(CW,y+BH+.5);g.stroke()}
+   y+=BH+10;[[0,"12a"],[6,"6a"],[12,"12p"],[18,"6p"]].forEach(([h,t])=>T(t,h*bw,y,6.5,mut,"left"));y+=6}
+  y+=6;LN(y);y+=26;SP("TOTAL TRACKED",0,y,9.5,mut,"left","700",1);T(hm(tot)||"0m",CW,y+2,19,navy,"right","700");y+=24;
+  KV("SESSIONS",String(l.length));if(lg)KV("LONGEST SESSION",hm(lg));if(first!=null)KV("FIRST - LAST",t12(first)+" - "+t12(last));
+  KV("TASKS DONE",tk.length?td+" of "+tk.length:"none planned");
+  if(gd>0)KV("DAILY GOAL",tot>=gd?"reached ✓":hm(tot)+" / "+hm(gd));
+  KV("VS YESTERDAY",df==0?"same":(df>0?"+":"-")+hm(Math.abs(df)));
+  KV("STREAK",stk+" day"+(stk==1?"":"s")+" 🔥");KV("LEVEL",L.L+" · +"+Math.round(tot)+" XP");
+  y+=2;LN(y);y+=20;const nm=(S.profile.name||"").trim();
+  if(nm){if(dr){g.fillStyle="#6b7280";g.beginPath();g.arc(7,y-3,7,0,7);g.fill();g.fillStyle="#fff";g.font="700 8px "+mono;g.textAlign="center";g.fillText(nm[0].toUpperCase(),7,y)}T("@"+nm.replace(/^@/,""),19,y,8.5,mut,"left")}
+  T("Study Track",CW,y,8.5,mut,"right");y+=14;return y};
+ const th=body(false)+14,PY=Math.max(6,Math.round((HH-th)/2));
+ g.fillStyle="#0f1729";g.fillRect(0,0,W,HH);
+ g.save();g.shadowColor="rgba(0,0,0,.45)";g.shadowBlur=18;g.shadowOffsetY=6;g.fillStyle="#f5f2ea";g.beginPath();const t=7,n=Math.floor(PW/t);g.moveTo(X0,PY+4);
+ for(let i=0;i<n;i++){g.lineTo(X0+(i+.5)*t,PY);g.lineTo(X0+(i+1)*t,PY+4)}g.lineTo(X0+PW,PY+th-4);for(let i=n;i>0;i--){g.lineTo(X0+(i-.5)*t,PY+th);g.lineTo(X0+(i-1)*t,PY+th-4)}g.closePath();g.fill();g.restore();
+ g.save();g.translate(X0+IN,PY+6);body(true);g.restore()}
+let RDK="";
+function dayReceipt(dk){RDK=dk;RCN="study-receipt-day-"+dk;POP={k:"r"};
+ $("pc").innerHTML=`<div class="ph"><div class="pt" style="flex:1">${dk==iso(mid(new Date()))?"Your day, wrapped up":"Daily receipt"}</div><button class="ib" data-a="pclose">✕</button></div><div class="rcw" style="margin-top:12px"><canvas id="rcv"></canvas></div><div class="row" style="margin-top:12px"><button class="p sp" data-a="rshare" style="padding:10px">Share</button><button data-a="rsave" style="padding:10px">Save image</button></div>`;
+ if(!$("pop").open)$("pop").showModal();rcDayDraw($("rcv"),dk)}
 /* ---------- popup for a study log ---------- */
 function sesPop(x){const c=CATS[x.cat]||CATS.study,s=sub(x.subj);POP={k:"s"};
  $("pc").innerHTML=`<div class="ph"><div class="pic" style="color:${s.color}">${c.i}</div><div style="flex:1;min-width:0"><div class="pt">${esc(x.t||s.name)}</div><div class="mut" style="font-size:14px">${c.n} · ${x.min} min${x.min==1?"":"s"}</div></div><button class="ib" data-a="ses" data-id="${x.id}" title="Edit log">⚙</button><button class="ib" data-a="pclose" title="Close">✕</button></div>
@@ -575,7 +616,7 @@ function confetti(){if(matchMedia("(prefers-reduced-motion:reduce)").matches)ret
  const P=Array.from({length:160},()=>({x:c.width/2+(Math.random()-.5)*200,y:c.height*.35,vx:(Math.random()-.5)*14,vy:-Math.random()*13-3,w:6+Math.random()*6,h:4+Math.random()*6,r:Math.random()*6,vr:(Math.random()-.5)*.4,c:cols[Math.random()*cols.length|0]}));const t0=performance.now();
  (function f(t){const e=t-t0;g.clearRect(0,0,c.width,c.height);P.forEach(p=>{p.vy+=.35;p.x+=p.vx;p.y+=p.vy;p.vx*=.99;p.r+=p.vr;g.save();g.globalAlpha=Math.max(0,1-e/3200);g.translate(p.x,p.y);g.rotate(p.r);g.fillStyle=p.c;g.fillRect(-p.w/2,-p.h/2,p.w,p.h);g.restore()});if(e<3200)requestAnimationFrame(f);else c.remove()})(t0)}
 /* ---------- friends and groups (needs sign-in) ---------- */
-const VER="2026.11.13",NOTES=["Syllabus: subjects start closed, hold and drag to reorder them, and ticking a chapter adds it to Revision automatically","Safer sync: changes from two devices are now combined instead of one replacing the other, plus daily backups and a Recover data button","Change your username and invite people to a group by username","Groups now have a dashboard view with stats, group goals and a leaderboard","Recurring tasks: set a repeat (daily, weekly, monthly) when adding a task","Dates now show as dd/mm/yyyy","You now get a pop-up whenever an app update is available","Group live sessions, now-studying and member of the week"];
+const VER="2026.11.15",NOTES=["Daily study receipt pops up when you finish all of a day's tasks (also under Day → Daily receipt)","Units now open and close like subjects, with a colour dot","Restored the original ▾ ▸ arrows","Syllabus: subjects start closed, hold and drag to reorder them, and ticking a chapter adds it to Revision automatically","Safer sync: changes from two devices are now combined instead of one replacing the other, plus daily backups and a Recover data button","Change your username and invite people to a group by username","Groups now have a dashboard view with stats, group goals and a leaderboard","Recurring tasks: set a repeat (daily, weekly, monthly) when adding a task","Dates now show as dd/mm/yyyy","You now get a pop-up whenever an app update is available","Group live sessions, now-studying and member of the week"];
 const SOC={me:null,fr:[],inc:[],out:[],gr:[],inv:[],pm:{},off:0,loading:false,err:"",ok:false};let PT=0,GT=0,SK="",PR={on:false,t:0},GS={};
 try{GS=JSON.parse(localStorage.getItem(K+".gs")||"{}")}catch(e){}
 const saveGS=()=>{try{localStorage.setItem(K+".gs",JSON.stringify(GS))}catch(e){}};
@@ -723,6 +764,7 @@ document.addEventListener("click",e=>{const t=e.target.closest("[data-a]");if(!t
  else if(a=="ht"){HT=v;render()}
  else if(a=="eo"){EO=!EO;render()}
  else if(a=="rcpt"){RW=WK;receipt()}
+ else if(a=="drcpt")dayReceipt(t.dataset.d)
  else if(a=="rwp"){RW=ad(RW,-7);receipt()}
  else if(a=="rwn"){RW=ad(RW,7);if(RW>monday(now))RW=monday(now);receipt()}
  else if(a=="rshare")rcShare()
@@ -739,13 +781,14 @@ document.addEventListener("click",e=>{const t=e.target.closest("[data-a]");if(!t
  else if(a=="addtask")taskF({kind:"todo",date:iso(T=="day"||T=="week"?A:mid(now)),t:"",subj:""})
  else if(a=="ctask")taskF({kind:"todo",date:iso(mid(now)),t:"",subj:id})
  else if(a=="edtask")taskF(S.tasks.find(x=>x.id==id))
- else if(a=="tdone"){const k=S.tasks.find(x=>x.id==id);if(k){k.done=!k.done;save();render();rp();if(k.done){const dt=S.tasks.filter(z=>z.date==k.date);if(dt.length&&dt.every(z=>z.done)){confetti();toast("All tasks done for the day 🎉")}}}}
+ else if(a=="tdone"){const k=S.tasks.find(x=>x.id==id);if(k){k.done=!k.done;save();render();rp();if(k.done){const dt=S.tasks.filter(z=>z.date==k.date);if(dt.length&&dt.every(z=>z.done)){confetti();toast("All tasks done for the day 🎉");const dk=k.date;setTimeout(()=>{if(!$("pop").open||POP&&POP.k=="r")dayReceipt(dk)},1400)}}}}
  else if(a=="tstudy"){const k=S.tasks.find(x=>x.id==id);if(k){if($("pop").open)$("pop").close();if(!TM.el){if(k.subj&&S.subs.some(z=>z.id==k.subj))$("tsub").value=k.subj;$("tnote").value=k.t}$("tv").hidden=false;tdraw()}}
  else if(a=="course")coursePop(id)
+ else if(a=="unt"){const k=t.dataset.u;if(SYU.has(k))SYU.delete(k);else SYU.add(k);render()}
  else if(a=="syt"){const k=t.dataset.s;if(SYO.has(k))SYO.delete(k);else SYO.add(k);render()}
  else if(a=="addunit"){SYO.add(t.dataset.s);unitF(t.dataset.s)}
  else if(a=="ued"){const[,u]=findU(t.dataset.s,t.dataset.u);if(u)unitF(t.dataset.s,u)}
- else if(a=="uadd")chapF(t.dataset.s,t.dataset.u)
+ else if(a=="uadd"){SYU.add(t.dataset.u);chapF(t.dataset.s,t.dataset.u)}
  else if(a=="ctog"){const[sb,u]=findU(t.dataset.s,t.dataset.u),c=u&&u.ch.find(z=>z.id==t.dataset.c);if(c){c.d=!c.d;
   if(c.d){const nm=x=>(x||"").trim().toLowerCase();if(!S.sr.items.some(x=>x.cid==c.id||(nm(x.subj)==nm(sb.name)&&nm(x.topic)==nm(c.t)))){S.sr.items.push({id:rid("r"),cid:c.id,auto:1,date:iso(mid(new Date())),subj:sb.name,unit:u.t,topic:c.t,mat:"",done:Array(6).fill(false)});toast("Added to your revision schedule")}}
   else S.sr.items=S.sr.items.filter(x=>!(x.cid==c.id&&x.auto&&!(x.done||[]).some(Boolean)));
